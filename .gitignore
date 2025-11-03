@@ -86,3 +86,17 @@ qdrant-data/
 tmp/
 temp/
 *.tmp
+
+# Project management files
+claude.md
+customizable-greetings-and-context-confirmation.md
+PROJECT_STATUS.md
+quickstart-guide.md
+REFACTOR_COMPLETE.md
+services/tenant-service/AUTH_GUIDE.md
+services/tenant-service/CLEANUP_COMPLETE.md
+services/tenant-service/REFACTOR_SUMMARY.md
+
+# Local development scripts
+start-dev.bat
+start-dev.sh

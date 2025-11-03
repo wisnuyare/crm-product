@@ -13,8 +13,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { OutletsService } from './outlets.service';
 import { CreateOutletDto } from './dto/create-outlet.dto';
 import { UpdateOutletDto } from './dto/update-outlet.dto';
-import { Outlet } from '../../types/tenant.interface';
-import { Roles } from '../../firebase/decorators';
+import { Outlet } from '../../types/tenant.entity';
+import { Roles, TenantId } from '../../firebase/decorators';
 
 @ApiTags('outlets')
 @Controller('outlets')
@@ -33,10 +33,10 @@ export class OutletsController {
 
   @Get()
   @Roles('admin', 'agent')
-  @ApiOperation({ summary: 'Get all outlets' })
-  @ApiResponse({ status: 200, description: 'List of all outlets', type: [Outlet] })
-  async findAll(): Promise<Outlet[]> {
-    return await this.outletsService.findAll();
+  @ApiOperation({ summary: 'Get all outlets for current tenant' })
+  @ApiResponse({ status: 200, description: 'List of tenant outlets', type: [Outlet] })
+  async findAll(@TenantId() tenantId: string): Promise<Outlet[]> {
+    return await this.outletsService.findAll(tenantId);
   }
 
   @Get('tenant/:tenantId')
@@ -52,8 +52,8 @@ export class OutletsController {
   @ApiOperation({ summary: 'Get outlet by ID' })
   @ApiResponse({ status: 200, description: 'Outlet found', type: Outlet })
   @ApiResponse({ status: 404, description: 'Outlet not found' })
-  async findOne(@Param('id') id: string): Promise<Outlet> {
-    return await this.outletsService.findOne(id);
+  async findOne(@Param('id') id: string, @TenantId() tenantId: string): Promise<Outlet> {
+    return await this.outletsService.findOne(id, tenantId);
   }
 
   @Put(':id')
@@ -61,8 +61,12 @@ export class OutletsController {
   @ApiOperation({ summary: 'Update outlet' })
   @ApiResponse({ status: 200, description: 'Outlet updated successfully', type: Outlet })
   @ApiResponse({ status: 404, description: 'Outlet not found' })
-  async update(@Param('id') id: string, @Body() updateOutletDto: UpdateOutletDto): Promise<Outlet> {
-    return await this.outletsService.update(id, updateOutletDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateOutletDto: UpdateOutletDto,
+    @TenantId() tenantId: string,
+  ): Promise<Outlet> {
+    return await this.outletsService.update(id, updateOutletDto, tenantId);
   }
 
   @Delete(':id')
@@ -71,7 +75,7 @@ export class OutletsController {
   @ApiOperation({ summary: 'Delete outlet' })
   @ApiResponse({ status: 204, description: 'Outlet deleted successfully' })
   @ApiResponse({ status: 404, description: 'Outlet not found' })
-  async remove(@Param('id') id: string): Promise<void> {
-    return await this.outletsService.remove(id);
+  async remove(@Param('id') id: string, @TenantId() tenantId: string): Promise<void> {
+    return await this.outletsService.remove(id, tenantId);
   }
 }

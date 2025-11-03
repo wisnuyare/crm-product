@@ -4,7 +4,19 @@
       "Bash(docker:*)",
       "Bash(docker-compose:*)",
       "Bash(mkdir:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(test:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 60 npm run build:*)",
+      "Bash(npm test:*)",
+      "Bash(test-quota-system.bat)",
+      "Bash(bash:*)",
+      "Bash(sudo apt-get:*)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

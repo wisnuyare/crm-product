@@ -3,17 +3,32 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
-import { Outlet } from '../../types/tenant.interface';
+import { Outlet } from '../../types/tenant.entity';
 import { CreateOutletDto } from './dto/create-outlet.dto';
 import { UpdateOutletDto } from './dto/update-outlet.dto';
+import { QuotaService } from '../quota/quota.service';
 
 @Injectable()
 export class OutletsService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    @Inject(forwardRef(() => QuotaService))
+    private readonly quotaService: QuotaService,
+  ) {}
 
   async create(createOutletDto: CreateOutletDto): Promise<Outlet> {
+    // ✅ Check quota limit before creating outlet
+    try {
+      await this.quotaService.checkOutletLimit(createOutletDto.tenantId);
+    } catch (error) {
+      // QuotaService will throw ForbiddenException if limit reached
+      throw error;
+    }
+
     // Check if phone number already exists
     const existing = await this.db.queryOne<Outlet>(
       'SELECT id FROM outlets WHERE waba_phone_number = $1',
@@ -47,9 +62,10 @@ export class OutletsService {
     return outlet;
   }
 
-  async findAll(): Promise<Outlet[]> {
+  async findAll(tenantId: string): Promise<Outlet[]> {
     const outlets = await this.db.queryMany<Outlet>(
-      'SELECT * FROM outlets ORDER BY created_at DESC',
+      'SELECT * FROM outlets WHERE tenant_id = $1 ORDER BY created_at DESC',
+      [tenantId],
     );
     return outlets;
   }
@@ -62,8 +78,11 @@ export class OutletsService {
     return outlets;
   }
 
-  async findOne(id: string): Promise<Outlet> {
-    const outlet = await this.db.queryOne<Outlet>('SELECT * FROM outlets WHERE id = $1', [id]);
+  async findOne(id: string, tenantId: string): Promise<Outlet> {
+    const outlet = await this.db.queryOne<Outlet>(
+      'SELECT * FROM outlets WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId],
+    );
 
     if (!outlet) {
       throw new NotFoundException(`Outlet with ID '${id}' not found`);
@@ -72,9 +91,12 @@ export class OutletsService {
     return outlet;
   }
 
-  async update(id: string, updateOutletDto: UpdateOutletDto): Promise<Outlet> {
-    // Check if outlet exists
-    const existing = await this.db.queryOne<Outlet>('SELECT * FROM outlets WHERE id = $1', [id]);
+  async update(id: string, updateOutletDto: UpdateOutletDto, tenantId: string): Promise<Outlet> {
+    // Check if outlet exists and belongs to tenant
+    const existing = await this.db.queryOne<Outlet>(
+      'SELECT * FROM outlets WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId],
+    );
 
     if (!existing) {
       throw new NotFoundException(`Outlet with ID '${id}' not found`);
@@ -154,13 +176,16 @@ export class OutletsService {
     return outlet;
   }
 
-  async remove(id: string): Promise<void> {
-    const outlet = await this.db.queryOne<Outlet>('SELECT id FROM outlets WHERE id = $1', [id]);
+  async remove(id: string, tenantId: string): Promise<void> {
+    const outlet = await this.db.queryOne<Outlet>(
+      'SELECT id FROM outlets WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId],
+    );
 
     if (!outlet) {
       throw new NotFoundException(`Outlet with ID '${id}' not found`);
     }
 
-    await this.db.query('DELETE FROM outlets WHERE id = $1', [id]);
+    await this.db.query('DELETE FROM outlets WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
   }
 }

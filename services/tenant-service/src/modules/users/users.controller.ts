@@ -12,8 +12,8 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { User } from '../../types/tenant.interface';
-import { Roles } from '../../firebase/decorators';
+import { User } from '../../types/tenant.entity';
+import { Roles, TenantId } from '../../firebase/decorators';
 
 @ApiTags('users')
 @Controller('users')
@@ -32,10 +32,10 @@ export class UsersController {
 
   @Get()
   @Roles('admin')
-  @ApiOperation({ summary: 'Get all users' })
-  @ApiResponse({ status: 200, description: 'List of all users', type: [User] })
-  async findAll(): Promise<User[]> {
-    return await this.usersService.findAll();
+  @ApiOperation({ summary: 'Get all users for current tenant' })
+  @ApiResponse({ status: 200, description: 'List of tenant users', type: [User] })
+  async findAll(@TenantId() tenantId: string): Promise<User[]> {
+    return await this.usersService.findAll(tenantId);
   }
 
   @Get('tenant/:tenantId')
@@ -51,8 +51,8 @@ export class UsersController {
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({ status: 200, description: 'User found', type: User })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async findOne(@Param('id') id: string): Promise<User> {
-    return await this.usersService.findOne(id);
+  async findOne(@Param('id') id: string, @TenantId() tenantId: string): Promise<User> {
+    return await this.usersService.findOne(id, tenantId);
   }
 
   @Put(':id/role')
@@ -60,8 +60,12 @@ export class UsersController {
   @ApiOperation({ summary: 'Update user role' })
   @ApiResponse({ status: 200, description: 'Role updated successfully', type: User })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async updateRole(@Param('id') id: string, @Body('role') role: string): Promise<User> {
-    return await this.usersService.updateRole(id, role);
+  async updateRole(
+    @Param('id') id: string,
+    @Body('role') role: string,
+    @TenantId() tenantId: string,
+  ): Promise<User> {
+    return await this.usersService.updateRole(id, role, tenantId);
   }
 
   @Delete(':id')
@@ -70,7 +74,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Delete user' })
   @ApiResponse({ status: 204, description: 'User deleted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async remove(@Param('id') id: string): Promise<void> {
-    return await this.usersService.remove(id);
+  async remove(@Param('id') id: string, @TenantId() tenantId: string): Promise<void> {
+    return await this.usersService.remove(id, tenantId);
   }
 }

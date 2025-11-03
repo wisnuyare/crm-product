@@ -90,3 +90,24 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  billing-service:
+    build:
+      context: ../../services/billing-service
+      dockerfile: Dockerfile
+    container_name: crm-billing-service
+    ports:
+      - "3002:3002"
+    environment:
+      - DATABASE_URL=postgresql://crm_user:crm_password@postgres:5432/crm_dev?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
+      - PORT=3002
+      - GIN_MODE=debug
+    networks:
+      - crm-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy

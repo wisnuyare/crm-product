@@ -13,8 +13,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
-import { Tenant } from '../../types/tenant.interface';
-import { Roles, Public } from '../../firebase/decorators';
+import { Tenant } from '../../types/tenant.entity';
+import { Roles, Public, TenantId } from '../../firebase/decorators';
 
 import { UpdateLlmConfigDto } from './dto/update-llm-config.dto';
 
@@ -35,10 +35,10 @@ export class TenantsController {
 
   @Get()
   @Roles('admin', 'agent')
-  @ApiOperation({ summary: 'Get all tenants' })
-  @ApiResponse({ status: 200, description: 'List of all tenants', type: [Tenant] })
-  async findAll(): Promise<Tenant[]> {
-    return await this.tenantsService.findAll();
+  @ApiOperation({ summary: 'Get current tenant info' })
+  @ApiResponse({ status: 200, description: 'Current tenant info', type: [Tenant] })
+  async findAll(@TenantId() tenantId: string): Promise<Tenant[]> {
+    return await this.tenantsService.findAll(tenantId);
   }
 
   @Get(':id')
@@ -46,13 +46,13 @@ export class TenantsController {
   @ApiOperation({ summary: 'Get tenant by ID' })
   @ApiResponse({ status: 200, description: 'Tenant found', type: Tenant })
   @ApiResponse({ status: 404, description: 'Tenant not found' })
-  async findOne(@Param('id') id: string): Promise<Tenant> {
-    return await this.tenantsService.findOne(id);
+  async findOne(@Param('id') id: string, @TenantId() tenantId: string): Promise<Tenant> {
+    return await this.tenantsService.findOne(id, tenantId);
   }
 
   @Get('slug/:slug')
   @Public()
-  @ApiOperation({ summary: 'Get tenant by slug' })
+  @ApiOperation({ summary: 'Get tenant by slug (public)' })
   @ApiResponse({ status: 200, description: 'Tenant found', type: Tenant })
   @ApiResponse({ status: 404, description: 'Tenant not found' })
   async findBySlug(@Param('slug') slug: string): Promise<Tenant> {
@@ -64,8 +64,12 @@ export class TenantsController {
   @ApiOperation({ summary: 'Update tenant' })
   @ApiResponse({ status: 200, description: 'Tenant updated successfully', type: Tenant })
   @ApiResponse({ status: 404, description: 'Tenant not found' })
-  async update(@Param('id') id: string, @Body() updateTenantDto: UpdateTenantDto): Promise<Tenant> {
-    return await this.tenantsService.update(id, updateTenantDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updateTenantDto: UpdateTenantDto,
+    @TenantId() tenantId: string,
+  ): Promise<Tenant> {
+    return await this.tenantsService.update(id, updateTenantDto, tenantId);
   }
 
   @Put(':id/llm-config')
@@ -76,8 +80,9 @@ export class TenantsController {
   async updateLlmConfig(
     @Param('id') id: string,
     @Body() llmConfigDto: UpdateLlmConfigDto,
+    @TenantId() tenantId: string,
   ): Promise<Tenant> {
-    return await this.tenantsService.updateLlmConfig(id, llmConfigDto);
+    return await this.tenantsService.updateLlmConfig(id, llmConfigDto, tenantId);
   }
 
   @Delete(':id')
@@ -86,7 +91,7 @@ export class TenantsController {
   @ApiOperation({ summary: 'Delete tenant' })
   @ApiResponse({ status: 204, description: 'Tenant deleted successfully' })
   @ApiResponse({ status: 404, description: 'Tenant not found' })
-  async remove(@Param('id') id: string): Promise<void> {
-    return await this.tenantsService.remove(id);
+  async remove(@Param('id') id: string, @TenantId() tenantId: string): Promise<void> {
+    return await this.tenantsService.remove(id, tenantId);
   }
 }

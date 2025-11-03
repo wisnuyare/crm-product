@@ -27,6 +27,22 @@ export class FirebaseAuthGuard implements CanActivate {
       return true;
     }
 
+    // DEVELOPMENT MODE: Bypass auth if Firebase is not configured
+    if (!this.firebaseService.isConfigured()) {
+      this.logger.warn('⚠️  Firebase not configured - bypassing authentication (DEV MODE)');
+      const request = context.switchToHttp().getRequest();
+
+      // Mock user for development
+      request.user = {
+        uid: '00000000-0000-0000-0000-000000000001',
+        email: 'dev@example.com',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        role: 'admin',
+      };
+
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromHeader(request);
 

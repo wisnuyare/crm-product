@@ -1,0 +1,8 @@
+{
+  "tenantId": "00000000-0000-0000-0000-000000000002",
+  "name": "New Branch",
+  "wabaPhoneNumber": "+628111222333",
+  "wabaPhoneNumberId": "new_phone_id",
+  "wabaBusinessAccountId": "new_business_id",
+  "wabaAccessToken": "new_access_token"
+}

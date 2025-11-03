@@ -37,6 +37,13 @@ export class FirebaseService implements OnModuleInit {
     }
   }
 
+  /**
+   * Check if Firebase is configured
+   */
+  isConfigured(): boolean {
+    return !!this.app;
+  }
+
   getAuth(): admin.auth.Auth {
     if (!this.app) {
       throw new Error('Firebase Admin not initialized');

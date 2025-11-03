@@ -80,7 +80,9 @@ CREATE TABLE usage_records (
   period_start DATE NOT NULL,
   period_end DATE NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
-  CONSTRAINT valid_usage_type CHECK (usage_type IN ('messages', 'api_calls', 'storage_mb'))
+  updated_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT valid_usage_type CHECK (usage_type IN ('messages', 'api_calls', 'storage_mb')),
+  CONSTRAINT unique_usage_period UNIQUE (tenant_id, usage_type, period_start, period_end)
 );
 
 -- Deposit management
@@ -237,6 +239,18 @@ CREATE POLICY tenant_isolation ON messages
   USING (conversation_id IN (
     SELECT id FROM conversations WHERE tenant_id = current_setting('app.current_tenant_id', true)::uuid
   ));
+
+-- Force RLS even for table owners (CRITICAL for multi-tenant isolation)
+ALTER TABLE tenants FORCE ROW LEVEL SECURITY;
+ALTER TABLE outlets FORCE ROW LEVEL SECURITY;
+ALTER TABLE users FORCE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions FORCE ROW LEVEL SECURITY;
+ALTER TABLE usage_records FORCE ROW LEVEL SECURITY;
+ALTER TABLE deposits FORCE ROW LEVEL SECURITY;
+ALTER TABLE knowledge_bases FORCE ROW LEVEL SECURITY;
+ALTER TABLE documents FORCE ROW LEVEL SECURITY;
+ALTER TABLE conversations FORCE ROW LEVEL SECURITY;
+ALTER TABLE messages FORCE ROW LEVEL SECURITY;
 
 -- ============================================================================
 -- SEED DATA (For Development)

@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateOutletDto {
   @ApiProperty({ example: '00000000-0000-0000-0000-000000000001', description: 'Tenant ID' })
-  @IsUUID()
+  @IsUUID('all')
   tenantId: string;
 
   @ApiProperty({ example: 'Downtown Store', description: 'Outlet name' })

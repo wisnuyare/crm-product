@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
-import { Tenant, TenantWithRelations } from '../../types/tenant.interface';
+import { Tenant, TenantWithRelations } from '../../types/tenant.entity';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 
@@ -43,27 +43,7 @@ export class TenantsService {
     return tenant;
   }
 
-  async findAll(): Promise<TenantWithRelations[]> {
-    const query = `
-      SELECT
-        t.*,
-        COALESCE(
-          (SELECT JSON_AGG(o.*) FROM outlets o WHERE o.tenant_id = t.id),
-          '[]'::json
-        ) as outlets,
-        COALESCE(
-          (SELECT JSON_AGG(u.*) FROM users u WHERE u.tenant_id = t.id),
-          '[]'::json
-        ) as users
-      FROM tenants t
-      ORDER BY t.created_at DESC
-    `;
-
-    const tenants = await this.db.queryMany<TenantWithRelations>(query);
-    return tenants;
-  }
-
-  async findOne(id: string): Promise<TenantWithRelations> {
+  async findAll(tenantId: string): Promise<TenantWithRelations[]> {
     const query = `
       SELECT
         t.*,
@@ -77,9 +57,30 @@ export class TenantsService {
         ) as users
       FROM tenants t
       WHERE t.id = $1
+      ORDER BY t.created_at DESC
     `;
 
-    const tenant = await this.db.queryOne<TenantWithRelations>(query, [id]);
+    const tenants = await this.db.queryMany<TenantWithRelations>(query, [tenantId]);
+    return tenants;
+  }
+
+  async findOne(id: string, tenantId: string): Promise<TenantWithRelations> {
+    const query = `
+      SELECT
+        t.*,
+        COALESCE(
+          (SELECT JSON_AGG(o.*) FROM outlets o WHERE o.tenant_id = t.id),
+          '[]'::json
+        ) as outlets,
+        COALESCE(
+          (SELECT JSON_AGG(u.*) FROM users u WHERE u.tenant_id = t.id),
+          '[]'::json
+        ) as users
+      FROM tenants t
+      WHERE t.id = $1 AND t.id = $2
+    `;
+
+    const tenant = await this.db.queryOne<TenantWithRelations>(query, [id, tenantId]);
 
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID '${id}' not found`);
@@ -113,9 +114,12 @@ export class TenantsService {
     return tenant;
   }
 
-  async update(id: string, updateTenantDto: UpdateTenantDto): Promise<Tenant> {
-    // Check if tenant exists
-    const existing = await this.db.queryOne<Tenant>('SELECT * FROM tenants WHERE id = $1', [id]);
+  async update(id: string, updateTenantDto: UpdateTenantDto, tenantId: string): Promise<Tenant> {
+    // Check if tenant exists and belongs to current tenant
+    const existing = await this.db.queryOne<Tenant>(
+      'SELECT * FROM tenants WHERE id = $1 AND id = $2',
+      [id, tenantId],
+    );
 
     if (!existing) {
       throw new NotFoundException(`Tenant with ID '${id}' not found`);
@@ -179,26 +183,33 @@ export class TenantsService {
     const query = `
       UPDATE tenants
       SET ${updates.join(', ')}
-      WHERE id = $${paramCount}
+      WHERE id = $${paramCount} AND id = $${paramCount + 1}
       RETURNING *
     `;
 
+    values.push(tenantId);
     const tenant = await this.db.queryOne<Tenant>(query, values);
     return tenant;
   }
 
-  async remove(id: string): Promise<void> {
-    const tenant = await this.db.queryOne<Tenant>('SELECT id FROM tenants WHERE id = $1', [id]);
+  async remove(id: string, tenantId: string): Promise<void> {
+    const tenant = await this.db.queryOne<Tenant>(
+      'SELECT id FROM tenants WHERE id = $1 AND id = $2',
+      [id, tenantId],
+    );
 
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID '${id}' not found`);
     }
 
-    await this.db.query('DELETE FROM tenants WHERE id = $1', [id]);
+    await this.db.query('DELETE FROM tenants WHERE id = $1 AND id = $2', [id, tenantId]);
   }
 
-  async updateLlmConfig(id: string, llmConfigDto: UpdateLlmConfigDto): Promise<Tenant> {
-    const tenant = await this.db.queryOne<Tenant>('SELECT id FROM tenants WHERE id = $1', [id]);
+  async updateLlmConfig(id: string, llmConfigDto: UpdateLlmConfigDto, tenantId: string): Promise<Tenant> {
+    const tenant = await this.db.queryOne<Tenant>(
+      'SELECT id FROM tenants WHERE id = $1 AND id = $2',
+      [id, tenantId],
+    );
 
     if (!tenant) {
       throw new NotFoundException(`Tenant with ID '${id}' not found`);
@@ -207,9 +218,9 @@ export class TenantsService {
     const updated = await this.db.queryOne<Tenant>(
       `UPDATE tenants
        SET llm_tone = $1, updated_at = NOW()
-       WHERE id = $2
+       WHERE id = $2 AND id = $3
        RETURNING *`,
-      [JSON.stringify(llmConfigDto), id],
+      [JSON.stringify(llmConfigDto), id, tenantId],
     );
 
     return updated;

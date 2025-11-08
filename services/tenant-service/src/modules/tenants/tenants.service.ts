@@ -225,4 +225,25 @@ export class TenantsService {
 
     return updated;
   }
+
+  async updateLlmInstructions(id: string, instructions: string, tenantId: string): Promise<Tenant> {
+    const tenant = await this.db.queryOne<Tenant>(
+      'SELECT id FROM tenants WHERE id = $1 AND id = $2',
+      [id, tenantId],
+    );
+
+    if (!tenant) {
+      throw new NotFoundException(`Tenant with ID '${id}' not found`);
+    }
+
+    const updated = await this.db.queryOne<Tenant>(
+      `UPDATE tenants
+       SET llm_tone = $1, updated_at = NOW()
+       WHERE id = $2 AND id = $3
+       RETURNING *`,
+      [JSON.stringify({ instructions }), id, tenantId],
+    );
+
+    return updated;
+  }
 }

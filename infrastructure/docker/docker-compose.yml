@@ -111,3 +111,142 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  knowledge-service:
+    build:
+      context: ../../services/knowledge-service
+      dockerfile: Dockerfile
+    container_name: crm-knowledge-service
+    ports:
+      - "3003:3003"
+    environment:
+      - DATABASE_URL=postgresql://crm_user:crm_password@postgres:5432/crm_dev
+      - QDRANT_URL=http://qdrant:6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-your-openai-key-here}
+      - STORAGE_PATH=/app/uploads
+      - PORT=3003
+    volumes:
+      - ../../services/knowledge-service/uploads:/app/uploads
+    networks:
+      - crm-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  conversation-service:
+    build:
+      context: ../../services/conversation-service
+      dockerfile: Dockerfile
+    container_name: crm-conversation-service
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=development
+      - PORT=3004
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=crm_dev
+      - DB_USER=crm_user
+      - DB_PASSWORD=crm_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - crm-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  llm-orchestration-service:
+    build:
+      context: ../../services/llm-orchestration-service
+      dockerfile: Dockerfile
+    container_name: crm-llm-orchestration-service
+    ports:
+      - "3005:3005"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-your-openai-key-here}
+      - OPENAI_MODEL=gpt-4o-mini
+      - KNOWLEDGE_SERVICE_URL=http://knowledge-service:3003
+      - CONVERSATION_SERVICE_URL=http://conversation-service:3004
+      - TENANT_SERVICE_URL=http://tenant-service:3001
+      - BOOKING_SERVICE_URL=http://booking-service:3008
+      - PORT=3005
+      - ENVIRONMENT=development
+    networks:
+      - crm-network
+    depends_on:
+      - knowledge-service
+      - conversation-service
+      - tenant-service
+      - booking-service
+
+  message-sender-service:
+    build:
+      context: ../../services/message-sender-service
+      dockerfile: Dockerfile
+    container_name: crm-message-sender-service
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+      - ENVIRONMENT=development
+      - TENANT_SERVICE_URL=http://tenant-service:3001
+      - CONVERSATION_SERVICE_URL=http://conversation-service:3004
+      - MAX_RETRIES=3
+      - INITIAL_BACKOFF_SECONDS=1
+      - MAX_BACKOFF_SECONDS=30
+      - REQUEST_TIMEOUT_SECONDS=10
+    networks:
+      - crm-network
+    depends_on:
+      - tenant-service
+      - conversation-service
+
+  analytics-service:
+    build:
+      context: ../../services/analytics-service
+      dockerfile: Dockerfile
+    container_name: crm-analytics-service
+    ports:
+      - "3007:3007"
+    environment:
+      - PORT=3007
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://crm_user:crm_password@postgres:5432/crm_dev
+      - TENANT_SERVICE_URL=http://tenant-service:3001
+      - CONVERSATION_SERVICE_URL=http://conversation-service:3004
+      - BIGQUERY_PROJECT_ID=${BIGQUERY_PROJECT_ID:-}
+      - BIGQUERY_DATASET=crm_analytics
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - crm-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  booking-service:
+    build:
+      context: ../../services/booking-service
+      dockerfile: Dockerfile
+    container_name: crm-booking-service
+    ports:
+      - "3008:3008"
+    environment:
+      - DATABASE_URL=postgresql://crm_user:crm_password@postgres:5432/crm_dev?sslmode=disable
+      - PORT=3008
+      - GIN_MODE=debug
+      - TENANT_SERVICE_URL=http://tenant-service:3001
+      - BILLING_SERVICE_URL=http://billing-service:3002
+    networks:
+      - crm-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      tenant-service:
+        condition: service_started

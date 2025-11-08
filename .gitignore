@@ -100,3 +100,11 @@ services/tenant-service/REFACTOR_SUMMARY.md
 # Local development scripts
 start-dev.bat
 start-dev.sh
+
+# Strategic planning documents (internal analysis, not for repo)
+BOOKING_IMPLEMENTATION_PLAN.md
+SPACE_BOOKING_ANALYSIS.md
+ORDER_MANAGEMENT_ANALYSIS.md
+FRONTEND_TESTING.md
+PROJECT_SUMMARY.md
+SESSION_SUMMARY.md

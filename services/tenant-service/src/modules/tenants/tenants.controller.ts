@@ -74,7 +74,7 @@ export class TenantsController {
 
   @Put(':id/llm-config')
   @Roles('admin')
-  @ApiOperation({ summary: 'Update tenant LLM configuration' })
+  @ApiOperation({ summary: 'Update tenant LLM configuration (deprecated - use /llm-instructions)' })
   @ApiResponse({ status: 200, description: 'LLM config updated successfully', type: Tenant })
   @ApiResponse({ status: 404, description: 'Tenant not found' })
   async updateLlmConfig(
@@ -83,6 +83,19 @@ export class TenantsController {
     @TenantId() tenantId: string,
   ): Promise<Tenant> {
     return await this.tenantsService.updateLlmConfig(id, llmConfigDto, tenantId);
+  }
+
+  @Put(':id/llm-instructions')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Update tenant LLM instructions' })
+  @ApiResponse({ status: 200, description: 'LLM instructions updated successfully', type: Tenant })
+  @ApiResponse({ status: 404, description: 'Tenant not found' })
+  async updateLlmInstructions(
+    @Param('id') id: string,
+    @Body() body: { instructions: string },
+    @TenantId() tenantId: string,
+  ): Promise<Tenant> {
+    return await this.tenantsService.updateLlmInstructions(id, body.instructions, tenantId);
   }
 
   @Delete(':id')

@@ -10,6 +10,7 @@ from uuid import UUID
 from app.config import settings
 from app.models import GenerateResponse
 from app.services.booking_service import booking_service
+from app.services.order_service import order_service
 
 
 class OpenAIService:
@@ -47,13 +48,13 @@ class OpenAIService:
                 "type": "function",
                 "function": {
                     "name": "create_booking",
-                    "description": "Create a new booking for a resource. Use this when customer confirms they want to book a specific resource at a specific time.",
+                    "description": "Create a new booking for a resource. Use this when customer confirms they want to book a specific resource at a specific time. IMPORTANT: You must use the exact 'id' field value (UUID format like 'a0a64e3f-5913-4cec-8a57-9c0361f242f4') from the search_availability function results as the resource_id parameter.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "resource_id": {
                                 "type": "string",
-                                "description": "UUID of the resource to book",
+                                "description": "UUID of the resource to book (must be the exact 'id' value from search_availability results, NOT the resource name). Example: 'a0a64e3f-5913-4cec-8a57-9c0361f242f4'",
                             },
                             "customer_phone": {
                                 "type": "string",
@@ -85,6 +86,88 @@ class OpenAIService:
                 },
             },
         ]
+
+        # Define order tools for function calling
+        self.order_tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "check_product_availability",
+                    "description": "Check if products are available in stock and get their prices. Use this when customer asks about products or wants to order something.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "product_names": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "List of product names to search for (e.g., ['chocolate cake', 'brownies'])",
+                            },
+                        },
+                        "required": ["product_names"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "create_order",
+                    "description": "Create a new order for the customer. Use this when customer confirms they want to order specific products with quantities.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "customer_phone": {
+                                "type": "string",
+                                "description": "Customer's phone number (with country code, e.g., '+628123456789')",
+                            },
+                            "customer_name": {
+                                "type": "string",
+                                "description": "Customer's full name",
+                            },
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "product_id": {
+                                            "type": "string",
+                                            "description": "UUID of the product to order",
+                                        },
+                                        "quantity": {
+                                            "type": "integer",
+                                            "description": "Quantity to order (must be positive)",
+                                            "minimum": 1,
+                                        },
+                                        "notes": {
+                                            "type": "string",
+                                            "description": "Optional notes for this item (e.g., 'extra chocolate', 'no nuts')",
+                                        },
+                                    },
+                                    "required": ["product_id", "quantity"],
+                                },
+                                "description": "List of items to order with product_id and quantity",
+                            },
+                            "pickup_date": {
+                                "type": "string",
+                                "description": "Pickup or delivery date in YYYY-MM-DD format (e.g., '2024-01-15'). Optional.",
+                            },
+                            "fulfillment_type": {
+                                "type": "string",
+                                "enum": ["pickup", "delivery"],
+                                "description": "Type of fulfillment - 'pickup' or 'delivery'. Default is 'pickup'.",
+                            },
+                            "notes": {
+                                "type": "string",
+                                "description": "Optional general notes for the order",
+                            },
+                        },
+                        "required": ["customer_phone", "customer_name", "items"],
+                    },
+                },
+            },
+        ]
+
+        # Combine all tools
+        self.tools = self.booking_tools + self.order_tools
 
     def count_tokens(self, messages: List[Dict[str, str]]) -> int:
         """
@@ -173,6 +256,26 @@ class OpenAIService:
                 )
                 return json.dumps(result)
 
+            elif function_name == "check_product_availability":
+                result = await order_service.check_product_availability(
+                    tenant_id=tenant_id,
+                    product_names=function_args.get("product_names", []),
+                )
+                return json.dumps(result)
+
+            elif function_name == "create_order":
+                result = await order_service.create_order(
+                    tenant_id=tenant_id,
+                    customer_phone=function_args.get("customer_phone"),
+                    customer_name=function_args.get("customer_name"),
+                    items=function_args.get("items", []),
+                    conversation_id=function_args.get("conversation_id"),
+                    pickup_date=function_args.get("pickup_date"),
+                    fulfillment_type=function_args.get("fulfillment_type", "pickup"),
+                    notes=function_args.get("notes"),
+                )
+                return json.dumps(result)
+
             else:
                 return json.dumps({"error": f"Unknown function: {function_name}"})
 
@@ -206,6 +309,14 @@ class OpenAIService:
         """
         input_tokens = self.count_tokens(messages)
         total_output_tokens = 0
+        functions_executed = []  # Track executed functions
+
+        # DEBUG: Log function calling configuration
+        tools_enabled = self.tools if enable_booking else None
+        print(f"🔧 Function calling enabled: {enable_booking}", flush=True)
+        print(f"🔧 Tools available: {len(self.tools) if tools_enabled else 0}", flush=True)
+        if tools_enabled:
+            print(f"🔧 Tool names: {[t['function']['name'] for t in self.tools]}", flush=True)
 
         # Call OpenAI API with tools if booking enabled
         response = await self.client.chat.completions.create(
@@ -213,12 +324,19 @@ class OpenAIService:
             messages=messages,
             max_tokens=max_tokens or settings.openai_max_tokens,
             temperature=temperature or settings.openai_temperature,
-            tools=self.booking_tools if enable_booking else None,
+            tools=self.tools if enable_booking else None,  # Now includes both booking and order tools
             tool_choice="auto" if enable_booking else None,
         )
 
         response_message = response.choices[0].message
         total_output_tokens += response.usage.completion_tokens
+
+        # DEBUG: Log tool call results
+        print(f"🔍 Tool calls in response: {bool(response_message.tool_calls)}", flush=True)
+        if response_message.tool_calls:
+            print(f"🔍 Number of tool calls: {len(response_message.tool_calls)}", flush=True)
+            for tc in response_message.tool_calls:
+                print(f"🔍 Tool: {tc.function.name} | Args: {tc.function.arguments}", flush=True)
 
         # Check if the model wants to call a function
         if response_message.tool_calls:
@@ -242,6 +360,14 @@ class OpenAIService:
             # Execute each tool call
             for tool_call in response_message.tool_calls:
                 function_response = await self.execute_tool_call(tool_call, tenant_id)
+
+                # Track function execution
+                functions_executed.append({
+                    "name": tool_call.function.name,
+                    "arguments": json.loads(tool_call.function.arguments),
+                    "result": json.loads(function_response),
+                })
+                print(f"✅ Executed: {tool_call.function.name}", flush=True)
 
                 # Add tool response to messages
                 messages.append({
@@ -282,6 +408,7 @@ class OpenAIService:
             rag_context_used=len(rag_sources) > 0,
             rag_sources=rag_sources,
             model=self.model,
+            functions_executed=functions_executed,  # Include function execution info
         )
 
     async def generate_stream(

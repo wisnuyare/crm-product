@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+from prometheus_fastapi_instrumentator import PrometheusFastApiInstrumentator
 
 from app.config import settings
 from app.database import engine, Base
@@ -16,6 +17,9 @@ app = FastAPI(
     version=settings.app_version,
     description="Knowledge Service for RAG-powered document search and management"
 )
+
+# Instrument for Prometheus
+PrometheusFastApiInstrumentator().instrument(app).expose(app)
 
 # CORS middleware
 app.add_middleware(

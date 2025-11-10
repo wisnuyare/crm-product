@@ -7,6 +7,7 @@ import (
 	"github.com/whatsapp-crm/message-sender-service/internal/config"
 	"github.com/whatsapp-crm/message-sender-service/internal/handlers"
 	"github.com/whatsapp-crm/message-sender-service/internal/services"
+	"github.com/zsais/go-gin-prometheus"
 )
 
 func main() {
@@ -27,6 +28,10 @@ func main() {
 
 	// Setup router
 	router := gin.Default()
+
+	// Prometheus middleware
+	p := ginprometheus.NewPrometheus("gin")
+	p.Use(router)
 
 	// Health and root endpoints
 	router.GET("/", healthHandler.RootHandler)

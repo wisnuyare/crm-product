@@ -11,6 +11,8 @@ import { UsersModule } from './modules/users/users.module';
 import { QuotaModule } from './modules/quota/quota.module';
 import { HealthController } from './health.controller';
 import { TenantContextMiddleware } from './middleware/tenant-context.middleware';
+import { MetricsModule } from './metrics/metrics.module';
+import { CryptoModule } from './crypto/crypto.module';
 
 @Module({
   imports: [
@@ -26,11 +28,17 @@ import { TenantContextMiddleware } from './middleware/tenant-context.middleware'
     // Firebase Auth
     FirebaseModule,
 
+    // Core Modules
+    CryptoModule,
+
     // Feature modules
     TenantsModule,
     OutletsModule,
     UsersModule,
     QuotaModule,
+
+    // Monitoring
+    MetricsModule,
   ],
   controllers: [HealthController],
   providers: [

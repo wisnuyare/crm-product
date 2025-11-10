@@ -1,0 +1,53 @@
+name: Booking Service CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/booking-service/**'
+      - '.github/workflows/booking-service.yml'
+  pull_request:
+    paths:
+      - 'services/booking-service/**'
+      - '.github/workflows/booking-service.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./services/booking-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: services/booking-service/go.sum
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/booking-service
+          file: ./services/booking-service/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/booking-service:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/booking-service:latest

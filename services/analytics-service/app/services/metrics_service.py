@@ -110,17 +110,57 @@ class MetricsService:
         # Calculate total cost (mock)
         total_cost = total_messages * 0.0002  # Approximate cost per message
 
-        return TenantSummary(
-            tenant_id=tenant_id,
-            tenant_name="Tenant Name",  # TODO: Fetch from Tenant Service
+        return summary
+
+    async def get_platform_summary(
+        self,
+        start_date: date,
+        end_date: date
+    ) -> "PlatformSummary":
+        """
+        Get summary metrics for the entire platform.
+
+        Args:
+            start_date: Start date for the summary.
+            end_date: End date for the summary.
+
+        Returns:
+            A summary of platform-wide metrics.
+        """
+        # In a real scenario, you'd query an aggregated table or run a query across all tenants.
+        # Here, we'll use the new mock platform data generation.
+        conversation_data = bigquery_service.query_platform_conversation_metrics(start_date, end_date)
+        message_data = bigquery_service.query_platform_message_metrics(start_date, end_date)
+
+        # Aggregate the mock data
+        total_conversations = sum(item["total_conversations"] for item in conversation_data)
+        total_resolved = sum(item["resolved_conversations"] for item in conversation_data)
+        total_handed_off = sum(item["handed_off_conversations"] for item in conversation_data)
+        total_messages = sum(item["total_messages"] for item in message_data)
+
+        # Calculate platform-wide averages
+        avg_response_time = (
+            sum(item["avg_response_time_seconds"] for item in message_data) / len(message_data)
+            if message_data else 0
+        )
+        resolution_rate = total_resolved / total_conversations if total_conversations > 0 else 0
+        handoff_rate = total_handed_off / total_conversations if total_conversations > 0 else 0
+
+        # Mock total cost and active tenants
+        total_cost = total_messages * 0.0002  # Approximate cost per message
+        active_tenants = random.randint(5, 15)
+
+        from app.models import PlatformSummary
+        return PlatformSummary(
             period_start=start_date,
             period_end=end_date,
+            total_active_tenants=active_tenants,
             total_conversations=total_conversations,
             total_messages=total_messages,
-            average_response_time_seconds=avg_response_time,
-            resolution_rate=resolution_rate,
-            handoff_rate=handoff_rate,
-            total_cost=total_cost
+            platform_average_response_time_seconds=avg_response_time,
+            platform_resolution_rate=resolution_rate,
+            platform_handoff_rate=handoff_rate,
+            total_platform_cost=total_cost
         )
 
     def _generate_handoff_metrics(

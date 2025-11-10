@@ -7,6 +7,7 @@ for the WhatsApp CRM platform.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+from prometheus_fastapi_instrumentator import PrometheusFastApiInstrumentator
 
 from app.config import settings
 from app.routers import metrics
@@ -18,6 +19,9 @@ app = FastAPI(
     version=settings.app_version,
     description="Analytics Service for metrics, reporting, and data insights",
 )
+
+# Instrument for Prometheus
+PrometheusFastApiInstrumentator().instrument(app).expose(app)
 
 # CORS middleware
 app.add_middleware(

@@ -19,22 +19,25 @@ export class TenantContextMiddleware implements NestMiddleware {
 
   async use(req: Request, res: Response, next: NextFunction) {
     // Skip if no user (public route)
-    const user = (req as any).user;
+    let tenantId = (req as any).user?.tenantId;
 
-    if (!user || !user.tenantId) {
-      // No tenant context for public routes or unauthenticated requests
-      next();
-      return;
+    // For local development, if user is not authenticated, try to get tenantId from header
+    if (!tenantId) {
+      tenantId = req.headers['x-tenant-id'] as string;
+      if (!tenantId) {
+        next();
+        return;
+      }
     }
 
     try {
       // Set PostgreSQL session variable for Row-Level Security
       await this.db.query(
         `SET LOCAL app.current_tenant_id = $1`,
-        [user.tenantId]
+        [tenantId]
       );
 
-      this.logger.debug(`Tenant context set: ${user.tenantId} for user ${user.email}`);
+      this.logger.debug(`Tenant context set: ${tenantId}`);
 
       next();
     } catch (error) {

@@ -7,6 +7,8 @@ const API_BASE_URLS = {
   llm: 'http://localhost:3005',
   messageSender: 'http://localhost:3006',
   analytics: 'http://localhost:3007',
+  booking: 'http://localhost:3008',
+  order: 'http://localhost:3009',
 };
 
 // Mock tenant ID for testing
@@ -14,7 +16,7 @@ export const MOCK_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
 // Fetch wrapper with error handling
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('authToken');
 
   const headers = {
     'Content-Type': 'application/json',
@@ -64,13 +66,29 @@ function createApiClient(baseURL: string) {
 
 // API clients for each service
 export const api = {
-  tenant: createApiClient(API_BASE_URLS.tenant),
+  tenant: {
+    ...createApiClient(API_BASE_URLS.tenant),
+    updateLlmInstructions: (tenantId: string, instructions: string) => {
+      return fetchWithAuth(`${API_BASE_URLS.tenant}/api/v1/tenants/${tenantId}/llm-instructions`, {
+        method: 'PUT',
+        body: JSON.stringify({ instructions }),
+      });
+    },
+    createOutlet: (outletData: any) => {
+      return fetchWithAuth(`${API_BASE_URLS.tenant}/api/v1/outlets`, {
+        method: 'POST',
+        body: JSON.stringify(outletData),
+      });
+    },
+  },
   billing: createApiClient(API_BASE_URLS.billing),
   knowledge: createApiClient(API_BASE_URLS.knowledge),
   conversation: createApiClient(API_BASE_URLS.conversation),
   llm: createApiClient(API_BASE_URLS.llm),
   messageSender: createApiClient(API_BASE_URLS.messageSender),
   analytics: createApiClient(API_BASE_URLS.analytics),
+  booking: createApiClient(API_BASE_URLS.booking),
+  order: createApiClient(API_BASE_URLS.order),
 };
 
 export default api;

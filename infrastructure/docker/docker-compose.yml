@@ -67,6 +67,32 @@ services:
     networks:
       - crm-network
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: crm-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - crm-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: crm-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - crm-network
+    depends_on:
+      - prometheus
+
   # Microservices
   tenant-service:
     build:
@@ -81,6 +107,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
       - PORT=3001
+      - CORS_ORIGIN=http://localhost:5173
     volumes:
       - ../../services/tenant-service/src:/app/src
     networks:
@@ -104,6 +131,7 @@ services:
       - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
       - PORT=3002
       - GIN_MODE=debug
+      - CORS_ORIGIN=http://localhost:5173
     networks:
       - crm-network
     depends_on:
@@ -125,6 +153,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-your-openai-key-here}
       - STORAGE_PATH=/app/uploads
       - PORT=3003
+      - CORS_ORIGIN=http://localhost:5173
     volumes:
       - ../../services/knowledge-service/uploads:/app/uploads
     networks:
@@ -152,6 +181,7 @@ services:
       - DB_PASSWORD=crm_password
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - CORS_ORIGIN=http://localhost:5173
     networks:
       - crm-network
     depends_on:
@@ -176,6 +206,7 @@ services:
       - BOOKING_SERVICE_URL=http://booking-service:3008
       - PORT=3005
       - ENVIRONMENT=development
+      - CORS_ORIGIN=http://localhost:5173
     networks:
       - crm-network
     depends_on:
@@ -200,6 +231,7 @@ services:
       - INITIAL_BACKOFF_SECONDS=1
       - MAX_BACKOFF_SECONDS=30
       - REQUEST_TIMEOUT_SECONDS=10
+      - CORS_ORIGIN=http://localhost:5173
     networks:
       - crm-network
     depends_on:
@@ -222,6 +254,7 @@ services:
       - BIGQUERY_PROJECT_ID=${BIGQUERY_PROJECT_ID:-}
       - BIGQUERY_DATASET=crm_analytics
       - REDIS_URL=redis://redis:6379
+      - CORS_ORIGIN=http://localhost:5173
     networks:
       - crm-network
     depends_on:
@@ -243,6 +276,7 @@ services:
       - GIN_MODE=debug
       - TENANT_SERVICE_URL=http://tenant-service:3001
       - BILLING_SERVICE_URL=http://billing-service:3002
+      - CORS_ORIGIN=http://localhost:5173
     networks:
       - crm-network
     depends_on:
@@ -250,3 +284,20 @@ services:
         condition: service_healthy
       tenant-service:
         condition: service_started
+
+  order-service:
+    build:
+      context: ../../services/order-service
+      dockerfile: Dockerfile
+    container_name: crm-order-service
+    ports:
+      - "3009:3009"
+    environment:
+      - DATABASE_URL=postgresql://crm_user:crm_password@postgres:5432/crm_dev?sslmode=disable
+      - PORT=3009
+      - GIN_MODE=debug
+    networks:
+      - crm-network
+    depends_on:
+      postgres:
+        condition: service_healthy

@@ -128,3 +128,46 @@ async def get_tenant_summary(
     except Exception as e:
         print(f"Error fetching tenant summary: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch tenant summary")
+
+
+# TODO: Implement proper owner/admin authentication
+# from app.dependencies import get_owner_user
+
+@router.get("/platform/summary", response_model="PlatformSummary")
+async def get_platform_summary(
+    # current_user: dict = Depends(get_owner_user), # Uncomment for production
+    start_date: Optional[date] = Query(None, description="Start date (defaults to 30 days ago)"),
+    end_date: Optional[date] = Query(None, description="End date (defaults to today)")
+):
+    """
+    Get summary metrics for the entire platform (Owner/Admin only)
+
+    Returns aggregated summary for all tenants including:
+    - Total active tenants
+    - Total conversations and messages
+    - Platform-wide average response time
+    - Platform-wide resolution and handoff rates
+    - Total platform cost
+    """
+    try:
+        if not end_date:
+            end_date = date.today()
+        if not start_date:
+            start_date = end_date - timedelta(days=30)
+
+        if start_date > end_date:
+            raise HTTPException(status_code=400, detail="start_date must be before end_date")
+
+        # The import is moved inside to avoid circular dependency issues
+        # if PlatformSummary were to be used in more complex scenarios.
+        from app.models import PlatformSummary
+        summary: PlatformSummary = await metrics_service.get_platform_summary(
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        return summary
+
+    except Exception as e:
+        print(f"Error fetching platform summary: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch platform summary")

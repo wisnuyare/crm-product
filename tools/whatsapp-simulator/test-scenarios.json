@@ -1,0 +1,122 @@
+{
+  "scenarios": [
+    {
+      "name": "Booking - Happy Path",
+      "description": "Customer checks availability and creates a booking",
+      "messages": [
+        {
+          "content": "Is the tennis court available tomorrow at 3pm?",
+          "expected": "should call search_availability function"
+        },
+        {
+          "content": "Yes, book it for 2 hours under the name John Doe, phone +628123456789",
+          "expected": "should call create_booking function"
+        }
+      ]
+    },
+    {
+      "name": "Booking - Check Multiple Resources",
+      "description": "Customer asks about different resource types",
+      "messages": [
+        {
+          "content": "Do you have any badminton courts?",
+          "expected": "should search for badminton courts"
+        },
+        {
+          "content": "What about futsal fields?",
+          "expected": "should search for futsal fields"
+        }
+      ]
+    },
+    {
+      "name": "Order - Happy Path",
+      "description": "Customer checks product and places order",
+      "messages": [
+        {
+          "content": "Do you have chocolate cake?",
+          "expected": "should call check_product_availability"
+        },
+        {
+          "content": "I want 2 chocolate cakes for Saturday",
+          "expected": "should call create_order function"
+        }
+      ]
+    },
+    {
+      "name": "Order - Browse Products",
+      "description": "Customer browses available products",
+      "messages": [
+        {
+          "content": "What products do you have?",
+          "expected": "should list available products"
+        },
+        {
+          "content": "How much is the red velvet cake?",
+          "expected": "should show price information"
+        }
+      ]
+    },
+    {
+      "name": "Order - Stock Management",
+      "description": "Test stock deduction and insufficient stock",
+      "messages": [
+        {
+          "content": "I want 2 chocolate cakes",
+          "expected": "should create order and deduct stock"
+        },
+        {
+          "content": "Actually, I want 20 more chocolate cakes",
+          "expected": "should return insufficient stock error"
+        }
+      ]
+    },
+    {
+      "name": "Mixed Conversation",
+      "description": "Customer asks about both booking and ordering",
+      "messages": [
+        {
+          "content": "Can I book a tennis court for tomorrow?",
+          "expected": "should search tennis court availability"
+        },
+        {
+          "content": "Also, do you sell any cakes?",
+          "expected": "should check product availability"
+        },
+        {
+          "content": "I'll take 1 chocolate cake and book the court for 2pm",
+          "expected": "should handle both requests"
+        }
+      ]
+    },
+    {
+      "name": "Full Customer Journey",
+      "description": "Complete conversation flow",
+      "messages": [
+        {
+          "content": "Hi, what services do you offer?",
+          "expected": "should provide general information"
+        },
+        {
+          "content": "I need a tennis court for tomorrow at 3pm",
+          "expected": "should check availability"
+        },
+        {
+          "content": "Perfect, book it for 2 hours. My name is Sarah Johnson, phone +628987654321",
+          "expected": "should create booking"
+        },
+        {
+          "content": "Do you have any chocolate products?",
+          "expected": "should search chocolate products"
+        },
+        {
+          "content": "I'll order 2 chocolate cakes for pickup on Saturday",
+          "expected": "should create order"
+        },
+        {
+          "content": "Thank you!",
+          "expected": "should end conversation politely"
+        }
+      ]
+    }
+  ]
+}

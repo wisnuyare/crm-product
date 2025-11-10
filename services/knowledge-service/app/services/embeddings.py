@@ -29,7 +29,8 @@ class EmbeddingsService:
         try:
             response = self.client.embeddings.create(
                 model=settings.openai_embedding_model,
-                input=text
+                input=text,
+                dimensions=settings.embedding_dimension
             )
             return response.data[0].embedding
         except Exception as e:
@@ -43,7 +44,8 @@ class EmbeddingsService:
         try:
             response = self.client.embeddings.create(
                 model=settings.openai_embedding_model,
-                input=texts
+                input=texts,
+                dimensions=settings.embedding_dimension
             )
             return [data.embedding for data in response.data]
         except Exception as e:

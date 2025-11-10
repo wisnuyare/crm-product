@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'tenant-service'
+    static_configs:
+      - targets: ['tenant-service:3001']
+
+  - job_name: 'billing-service'
+    static_configs:
+      - targets: ['billing-service:3002']
+
+  - job_name: 'knowledge-service'
+    static_configs:
+      - targets: ['knowledge-service:3003']
+
+  - job_name: 'conversation-service'
+    static_configs:
+      - targets: ['conversation-service:3004']
+
+  - job_name: 'llm-orchestration-service'
+    static_configs:
+      - targets: ['llm-orchestration-service:3005']
+
+  - job_name: 'message-sender-service'
+    static_configs:
+      - targets: ['message-sender-service:3006']
+
+  - job_name: 'analytics-service'
+    static_configs:
+      - targets: ['analytics-service:3007']
+
+  - job_name: 'booking-service'
+    static_configs:
+      - targets: ['booking-service:3008']
+
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['order-service:3009']

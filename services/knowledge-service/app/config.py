@@ -17,11 +17,11 @@ class Settings(BaseSettings):
     # Qdrant
     qdrant_url: str = os.getenv("QDRANT_URL", "http://localhost:6333")
     qdrant_collection: str = "knowledge"
-    embedding_dimension: int = 1536  # text-embedding-3-small
+    embedding_dimension: int = 3072  # text-embedding-3-large (full dimensions)
 
     # OpenAI
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    openai_embedding_model: str = "text-embedding-3-small"
+    openai_embedding_model: str = "text-embedding-3-large"
 
     # Document Processing
     max_file_size_mb: int = 50

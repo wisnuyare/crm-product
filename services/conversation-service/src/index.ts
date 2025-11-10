@@ -6,10 +6,21 @@ import { db } from './services/database.service';
 import { initializeWebSocket } from './services/websocket.service';
 import { conversationController } from './controllers/conversation.controller';
 import { messageController } from './controllers/message.controller';
+import * as client from 'prom-client';
 
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
+
+// Prometheus metrics
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics();
+
+const requestCounter = new client.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code']
+});
 
 // Initialize WebSocket
 const wsService = initializeWebSocket(server);
@@ -19,10 +30,28 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Metrics middleware
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    requestCounter.inc({
+      method: req.method,
+      route: req.route ? req.route.path : req.path,
+      status_code: res.statusCode
+    });
+  });
+  next();
+});
+
 // Request logging middleware
 app.use((req: Request, res: Response, next) => {
   console.log(`${req.method} ${req.path}`);
   next();
+});
+
+// Metrics endpoint
+app.get('/metrics', async (req: Request, res: Response) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
 });
 
 // Health check endpoint

@@ -1,24 +1,43 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   MessageSquare,
   BookOpen,
   Calendar,
+  Package,
+  ShoppingCart,
   BarChart3,
-  Settings
+  Settings,
+  LogOut,
 } from 'lucide-react';
+import { getAuth, signOut } from 'firebase/auth';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Conversations', href: '/conversations', icon: MessageSquare },
   { name: 'Knowledge Base', href: '/knowledge', icon: BookOpen },
   { name: 'Bookings', href: '/bookings', icon: Calendar },
+  { name: 'Products', href: '/products', icon: Package },
+  { name: 'Orders', href: '/orders', icon: ShoppingCart },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const auth = getAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userEmail');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   return (
     <div className="flex h-screen w-64 flex-col bg-gray-900">
@@ -53,7 +72,14 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-gray-800 p-4">
-        <div className="text-xs text-gray-500">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center rounded-lg px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-800 hover:text-white"
+        >
+          <LogOut className="mr-3 h-5 w-5" />
+          Logout
+        </button>
+        <div className="mt-4 text-xs text-gray-500">
           <p>Tenant: Demo</p>
           <p className="mt-1">v1.0.0</p>
         </div>

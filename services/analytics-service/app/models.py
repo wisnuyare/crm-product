@@ -94,6 +94,19 @@ class TenantSummary(BaseModel):
     total_cost: float
 
 
+class PlatformSummary(BaseModel):
+    """Summary metrics for the entire platform"""
+    period_start: date
+    period_end: date
+    total_active_tenants: int
+    total_conversations: int
+    total_messages: int
+    platform_average_response_time_seconds: float
+    platform_resolution_rate: float
+    platform_handoff_rate: float
+    total_platform_cost: float
+
+
 class ReportRequest(BaseModel):
     """Request model for report generation"""
     tenant_id: UUID

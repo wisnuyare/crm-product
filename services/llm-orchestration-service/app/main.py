@@ -7,6 +7,7 @@ and OpenAI API interactions for the WhatsApp CRM platform.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+from prometheus_fastapi_instrumentator import PrometheusFastApiInstrumentator
 
 from app.config import settings
 from app.routers import generate
@@ -17,6 +18,9 @@ app = FastAPI(
     version=settings.app_version,
     description="LLM Orchestration Service for RAG-powered conversational AI",
 )
+
+# Instrument for Prometheus
+PrometheusFastApiInstrumentator().instrument(app).expose(app)
 
 # CORS middleware
 app.add_middleware(

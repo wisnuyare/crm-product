@@ -37,6 +37,7 @@ class GenerateResponse(BaseModel):
     rag_context_used: bool
     rag_sources: List[str] = []
     model: str
+    functions_executed: List[Dict[str, Any]] = []  # Track function calls
 
     class Config:
         json_schema_extra = {
@@ -52,6 +53,7 @@ class GenerateResponse(BaseModel):
                 "rag_context_used": True,
                 "rag_sources": ["password-reset-guide.pdf", "faq.docx"],
                 "model": "gpt-4o-mini",
+                "functions_executed": [],
             }
         }
 

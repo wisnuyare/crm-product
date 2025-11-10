@@ -133,6 +133,28 @@ class BigQueryService:
             print(f"BigQuery error: {e}")
             return self._mock_message_metrics(start_date, end_date)
 
+    def query_platform_conversation_metrics(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> List[Dict[str, Any]]:
+        """Query platform-wide conversation metrics"""
+        if not self.client:
+            return self._mock_platform_conversation_metrics(start_date, end_date)
+        # TODO: Implement real BigQuery query for platform metrics
+        return self._mock_platform_conversation_metrics(start_date, end_date)
+
+    def query_platform_message_metrics(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> List[Dict[str, Any]]:
+        """Query platform-wide message metrics"""
+        if not self.client:
+            return self._mock_platform_message_metrics(start_date, end_date)
+        # TODO: Implement real BigQuery query for platform metrics
+        return self._mock_platform_message_metrics(start_date, end_date)
+
     def _build_query_config(self, params: Dict[str, Any]):
         """Build BigQuery job config with parameters"""
         from google.cloud import bigquery
@@ -147,6 +169,59 @@ class BigQueryService:
 
         job_config.query_parameters = query_parameters
         return job_config
+
+    def _mock_platform_conversation_metrics(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
+        """Generate mock conversation metrics for the entire platform"""
+        from datetime import timedelta
+        import random
+
+        metrics = []
+        current_date = start_date
+        
+        while current_date <= end_date:
+            # Simulate metrics for 5-10 tenants
+            num_tenants = random.randint(5, 10)
+            total_conv = sum([random.randint(10, 50) for _ in range(num_tenants)])
+            resolved = int(total_conv * random.uniform(0.6, 0.9))
+            handed_off = int(total_conv * random.uniform(0.05, 0.15))
+
+            metrics.append({
+                "date": current_date,
+                "total_conversations": total_conv,
+                "active_conversations": total_conv - resolved - handed_off,
+                "resolved_conversations": resolved,
+                "handed_off_conversations": handed_off,
+                "avg_duration_minutes": random.uniform(5, 20),
+                "resolution_rate": resolved / total_conv if total_conv > 0 else 0
+            })
+            current_date += timedelta(days=1)
+        return metrics
+
+    def _mock_platform_message_metrics(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
+        """Generate mock message metrics for the entire platform"""
+        from datetime import timedelta
+        import random
+
+        metrics = []
+        current_date = start_date
+
+        while current_date <= end_date:
+            num_tenants = random.randint(5, 10)
+            total_msg = sum([random.randint(100, 500) for _ in range(num_tenants)])
+            customer = int(total_msg * 0.4)
+            llm = int(total_msg * 0.45)
+            agent = total_msg - customer - llm
+
+            metrics.append({
+                "date": current_date,
+                "total_messages": total_msg,
+                "customer_messages": customer,
+                "llm_messages": llm,
+                "agent_messages": agent,
+                "avg_response_time_seconds": random.uniform(10, 60)
+            })
+            current_date += timedelta(days=1)
+        return metrics
 
     def _mock_conversation_metrics(self, start_date: date, end_date: date) -> List[Dict[str, Any]]:
         """Generate mock conversation metrics for development"""

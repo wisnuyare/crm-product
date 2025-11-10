@@ -11,6 +11,7 @@ import { Outlet } from '../../types/tenant.entity';
 import { CreateOutletDto } from './dto/create-outlet.dto';
 import { UpdateOutletDto } from './dto/update-outlet.dto';
 import { QuotaService } from '../quota/quota.service';
+import { CryptoService } from '../../crypto/crypto.service';
 
 @Injectable()
 export class OutletsService {
@@ -18,6 +19,7 @@ export class OutletsService {
     private readonly db: DatabaseService,
     @Inject(forwardRef(() => QuotaService))
     private readonly quotaService: QuotaService,
+    private readonly cryptoService: CryptoService,
   ) {}
 
   async create(createOutletDto: CreateOutletDto): Promise<Outlet> {
@@ -41,6 +43,9 @@ export class OutletsService {
       );
     }
 
+    // Encrypt WABA access token
+    const encryptedToken = this.cryptoService.encrypt(createOutletDto.wabaAccessToken);
+
     // Insert outlet
     const outlet = await this.db.queryOne<Outlet>(
       `INSERT INTO outlets (
@@ -55,9 +60,12 @@ export class OutletsService {
         createOutletDto.wabaPhoneNumber,
         createOutletDto.wabaPhoneNumberId,
         createOutletDto.wabaBusinessAccountId,
-        createOutletDto.wabaAccessToken,
+        encryptedToken,
       ],
     );
+
+    // Decrypt token for the response
+    outlet.waba_access_token = this.cryptoService.decrypt(outlet.waba_access_token);
 
     return outlet;
   }
@@ -67,7 +75,10 @@ export class OutletsService {
       'SELECT * FROM outlets WHERE tenant_id = $1 ORDER BY created_at DESC',
       [tenantId],
     );
-    return outlets;
+    return outlets.map(o => ({
+      ...o,
+      waba_access_token: this.cryptoService.decrypt(o.waba_access_token),
+    }));
   }
 
   async findByTenant(tenantId: string): Promise<Outlet[]> {
@@ -75,7 +86,10 @@ export class OutletsService {
       'SELECT * FROM outlets WHERE tenant_id = $1 ORDER BY created_at DESC',
       [tenantId],
     );
-    return outlets;
+    return outlets.map(o => ({
+      ...o,
+      waba_access_token: this.cryptoService.decrypt(o.waba_access_token),
+    }));
   }
 
   async findOne(id: string, tenantId: string): Promise<Outlet> {
@@ -88,6 +102,7 @@ export class OutletsService {
       throw new NotFoundException(`Outlet with ID '${id}' not found`);
     }
 
+    outlet.waba_access_token = this.cryptoService.decrypt(outlet.waba_access_token);
     return outlet;
   }
 
@@ -151,7 +166,7 @@ export class OutletsService {
 
     if (updateOutletDto.wabaAccessToken !== undefined) {
       updates.push(`waba_access_token = $${paramCount++}`);
-      values.push(updateOutletDto.wabaAccessToken);
+      values.push(this.cryptoService.encrypt(updateOutletDto.wabaAccessToken));
     }
 
     if (updateOutletDto.status !== undefined) {
@@ -160,6 +175,7 @@ export class OutletsService {
     }
 
     if (updates.length === 0) {
+      existing.waba_access_token = this.cryptoService.decrypt(existing.waba_access_token);
       return existing;
     }
 
@@ -173,6 +189,7 @@ export class OutletsService {
     `;
 
     const outlet = await this.db.queryOne<Outlet>(query, values);
+    outlet.waba_access_token = this.cryptoService.decrypt(outlet.waba_access_token);
     return outlet;
   }
 

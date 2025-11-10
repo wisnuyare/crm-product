@@ -137,6 +137,18 @@ export interface TenantSummary {
   totalCost: number;
 }
 
+export interface PlatformSummary {
+  period_start: string;
+  period_end: string;
+  total_active_tenants: number;
+  total_conversations: number;
+  total_messages: number;
+  platform_average_response_time_seconds: number;
+  platform_resolution_rate: number;
+  platform_handoff_rate: number;
+  total_platform_cost: number;
+}
+
 // Billing types
 export interface QuotaStatus {
   tenantId: string;

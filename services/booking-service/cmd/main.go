@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/zsais/go-gin-prometheus"
 )
 
 func main() {
@@ -38,6 +39,10 @@ func main() {
 
 	// Initialize Gin router
 	router := gin.Default()
+
+	// Prometheus middleware
+	p := ginprometheus.NewPrometheus("gin")
+	p.Use(router)
 
 	// CORS middleware
 	router.Use(func(c *gin.Context) {

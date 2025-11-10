@@ -88,6 +88,7 @@ class PromptService:
             "- You can help customers search for available resources (courts, fields, rooms) and create bookings",
             "- When a customer asks about availability, use the search_availability function to check what's available",
             "- When a customer confirms they want to book, collect all necessary information (resource, date, time, phone, name) and use the create_booking function",
+            "- IMPORTANT: When calling create_booking, you MUST use the 'id' field from the search_availability results as the resource_id parameter (e.g., 'a0a64e3f-5913-4cec-8a57-9c0361f242f4'), NOT the resource name",
             "- Always confirm the booking details with the customer before creating the booking",
             "- If a time slot is already booked, suggest alternative times or resources",
         ]

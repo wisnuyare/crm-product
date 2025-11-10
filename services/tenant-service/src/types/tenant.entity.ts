@@ -48,8 +48,11 @@ export class Outlet {
   @ApiProperty()
   waba_business_account_id: string;
 
+  @ApiProperty({ required: false, writeOnly: true })
+  waba_access_token?: string;
+
   @ApiProperty()
-  waba_access_token: string;
+  has_waba_access_token: boolean;
 
   @ApiProperty()
   created_at: Date;

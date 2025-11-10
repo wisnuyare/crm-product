@@ -42,8 +42,9 @@ export interface CreateMessageDto {
 
 export interface HandoffRequest {
   conversation_id: string;
-  reason: string;
+  reason?: string | null;
   agent_id?: string;
+  requested: boolean;
 }
 
 export interface ConversationWithMessages extends Conversation {

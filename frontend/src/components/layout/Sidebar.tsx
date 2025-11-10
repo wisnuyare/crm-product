@@ -10,7 +10,8 @@ import {
   Settings,
   LogOut,
 } from 'lucide-react';
-import { getAuth, signOut } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
+import { auth } from '../../services/firebase';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -26,7 +27,7 @@ const navigation = [
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const auth = getAuth();
+  // const auth = getAuth();
 
   const handleLogout = async () => {
     try {

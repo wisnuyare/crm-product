@@ -15,19 +15,29 @@ import { CreateOutletDto } from './dto/create-outlet.dto';
 import { UpdateOutletDto } from './dto/update-outlet.dto';
 import { Outlet } from '../../types/tenant.entity';
 import { Roles, TenantId } from '../../firebase/decorators';
+import { ConfigService } from '@nestjs/config';
+import { Headers } from '@nestjs/common';
 
 @ApiTags('outlets')
 @Controller('outlets')
 @ApiBearerAuth()
 export class OutletsController {
-  constructor(private readonly outletsService: OutletsService) {}
+  constructor(
+    private readonly outletsService: OutletsService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  private isInternalRequest(apiKey?: string): boolean {
+    const expected = this.configService.get<string>('INTERNAL_API_KEY');
+    return Boolean(expected && apiKey && apiKey === expected);
+  }
 
   @Post()
   @Roles('admin')
   @ApiOperation({ summary: 'Create a new outlet' })
   @ApiResponse({ status: 201, description: 'Outlet created successfully', type: Outlet })
   @ApiResponse({ status: 409, description: 'Outlet with phone number already exists' })
-  async create(@Body() createOutletDto: CreateOutletDto): Promise<Outlet> {
+  async create(@Body() createOutletDto: CreateOutletDto): Promise<any> {
     return await this.outletsService.create(createOutletDto);
   }
 
@@ -35,7 +45,7 @@ export class OutletsController {
   @Roles('admin', 'agent')
   @ApiOperation({ summary: 'Get all outlets for current tenant' })
   @ApiResponse({ status: 200, description: 'List of tenant outlets', type: [Outlet] })
-  async findAll(@TenantId() tenantId: string): Promise<Outlet[]> {
+  async findAll(@TenantId() tenantId: string): Promise<any[]> {
     return await this.outletsService.findAll(tenantId);
   }
 
@@ -43,7 +53,7 @@ export class OutletsController {
   @Roles('admin', 'agent')
   @ApiOperation({ summary: 'Get all outlets for a tenant' })
   @ApiResponse({ status: 200, description: 'List of tenant outlets', type: [Outlet] })
-  async findByTenant(@Param('tenantId') tenantId: string): Promise<Outlet[]> {
+  async findByTenant(@Param('tenantId') tenantId: string): Promise<any[]> {
     return await this.outletsService.findByTenant(tenantId);
   }
 
@@ -52,8 +62,13 @@ export class OutletsController {
   @ApiOperation({ summary: 'Get outlet by ID' })
   @ApiResponse({ status: 200, description: 'Outlet found', type: Outlet })
   @ApiResponse({ status: 404, description: 'Outlet not found' })
-  async findOne(@Param('id') id: string, @TenantId() tenantId: string): Promise<Outlet> {
-    return await this.outletsService.findOne(id, tenantId);
+  async findOne(
+    @Param('id') id: string,
+    @TenantId() tenantId: string,
+    @Headers('x-internal-api-key') internalKey?: string,
+  ): Promise<any> {
+    const includeSecret = this.isInternalRequest(internalKey);
+    return await this.outletsService.findOne(id, tenantId, includeSecret);
   }
 
   @Put(':id')
@@ -65,7 +80,7 @@ export class OutletsController {
     @Param('id') id: string,
     @Body() updateOutletDto: UpdateOutletDto,
     @TenantId() tenantId: string,
-  ): Promise<Outlet> {
+  ): Promise<any> {
     return await this.outletsService.update(id, updateOutletDto, tenantId);
   }
 

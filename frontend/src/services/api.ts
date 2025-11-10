@@ -1,5 +1,5 @@
 // Base API configuration
-const API_BASE_URLS = {
+export const API_BASE_URLS = {
   tenant: 'http://localhost:3001',
   billing: 'http://localhost:3002',
   knowledge: 'http://localhost:3003',
@@ -12,18 +12,30 @@ const API_BASE_URLS = {
 };
 
 // Mock tenant ID for testing
-export const MOCK_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+export const MOCK_TENANT_ID = '550e8400-e29b-41d4-a716-446655440000';
 
 // Fetch wrapper with error handling
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const token = localStorage.getItem('authToken');
 
-  const headers = {
-    'Content-Type': 'application/json',
+  const isFormData = typeof FormData !== 'undefined' && options?.body instanceof FormData;
+  const rawHeaders = options?.headers;
+  let customHeaders: Record<string, string> = {};
+  if (rawHeaders instanceof Headers) {
+    customHeaders = Object.fromEntries(rawHeaders.entries());
+  } else if (rawHeaders) {
+    customHeaders = rawHeaders as Record<string, string>;
+  }
+
+  const headers: Record<string, string> = {
     'X-Tenant-Id': MOCK_TENANT_ID,
     ...(token && { Authorization: `Bearer ${token}` }),
-    ...options.headers,
+    ...customHeaders,
   };
+
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const response = await fetch(url, {
     ...options,
@@ -68,6 +80,10 @@ function createApiClient(baseURL: string) {
 export const api = {
   tenant: {
     ...createApiClient(API_BASE_URLS.tenant),
+    getTenant: (tenantId: string) =>
+      fetchWithAuth(`${API_BASE_URLS.tenant}/api/v1/tenants/${tenantId}`),
+    getQuotaStatus: () => fetchWithAuth(`${API_BASE_URLS.tenant}/api/v1/quota/status`),
+    listOutlets: () => fetchWithAuth(`${API_BASE_URLS.tenant}/api/v1/outlets`),
     updateLlmInstructions: (tenantId: string, instructions: string) => {
       return fetchWithAuth(`${API_BASE_URLS.tenant}/api/v1/tenants/${tenantId}/llm-instructions`, {
         method: 'PUT',
@@ -80,10 +96,92 @@ export const api = {
         body: JSON.stringify(outletData),
       });
     },
+    updateOutlet: (outletId: string, outletData: any) => {
+      return fetchWithAuth(`${API_BASE_URLS.tenant}/api/v1/outlets/${outletId}`, {
+        method: 'PUT',
+        body: JSON.stringify(outletData),
+      });
+    },
   },
   billing: createApiClient(API_BASE_URLS.billing),
   knowledge: createApiClient(API_BASE_URLS.knowledge),
+  knowledgeService: {
+    listKnowledgeBases: () =>
+      fetchWithAuth(`${API_BASE_URLS.knowledge}/api/v1/knowledge-bases`),
+    createKnowledgeBase: (data: { outlet_id: string; name: string; description?: string }) =>
+      fetchWithAuth(`${API_BASE_URLS.knowledge}/api/v1/knowledge-bases`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    deleteKnowledgeBase: (knowledgeBaseId: string) =>
+      fetchWithAuth(`${API_BASE_URLS.knowledge}/api/v1/knowledge-bases/${knowledgeBaseId}`, {
+        method: 'DELETE',
+      }),
+    listDocuments: (knowledgeBaseId: string) =>
+      fetchWithAuth(
+        `${API_BASE_URLS.knowledge}/api/v1/knowledge-bases/${knowledgeBaseId}/documents`,
+      ),
+    uploadDocument: (knowledgeBaseId: string, file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return fetchWithAuth(
+        `${API_BASE_URLS.knowledge}/api/v1/knowledge-bases/${knowledgeBaseId}/documents`,
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
+    },
+    deleteDocument: (knowledgeBaseId: string, documentId: string) =>
+      fetchWithAuth(
+        `${API_BASE_URLS.knowledge}/api/v1/knowledge-bases/${knowledgeBaseId}/documents/${documentId}`,
+        { method: 'DELETE' },
+      ),
+  },
   conversation: createApiClient(API_BASE_URLS.conversation),
+  conversationService: {
+    getActiveConversations: (outletId?: string) => {
+      const params = outletId ? `?outlet_id=${encodeURIComponent(outletId)}` : '';
+      return fetchWithAuth(`${API_BASE_URLS.conversation}/api/v1/conversations/active${params}`);
+    },
+    getConversation: (conversationId: string, includeMessages = false) => {
+      const params = includeMessages ? '?include_messages=true' : '';
+      return fetchWithAuth(
+        `${API_BASE_URLS.conversation}/api/v1/conversations/${conversationId}${params}`
+      );
+    },
+    getMessages: (conversationId: string, limit = 100) => {
+      return fetchWithAuth(
+        `${API_BASE_URLS.conversation}/api/v1/conversations/${conversationId}/messages?limit=${limit}`
+      );
+    },
+    sendMessage: (payload: {
+      conversation_id: string;
+      sender_type: 'customer' | 'llm' | 'agent';
+      sender_id?: string;
+      content: string;
+    }) => {
+      return fetchWithAuth(`${API_BASE_URLS.conversation}/api/v1/messages`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+    requestHandoff: (conversationId: string, reason: string, agentId?: string) => {
+      return fetchWithAuth(
+        `${API_BASE_URLS.conversation}/api/v1/conversations/${conversationId}/handoff`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ reason, agent_id: agentId }),
+        },
+      );
+    },
+    resumeHandoff: (conversationId: string) => {
+      return fetchWithAuth(
+        `${API_BASE_URLS.conversation}/api/v1/conversations/${conversationId}/handoff/release`,
+        { method: 'POST' },
+      );
+    },
+  },
   llm: createApiClient(API_BASE_URLS.llm),
   messageSender: createApiClient(API_BASE_URLS.messageSender),
   analytics: createApiClient(API_BASE_URLS.analytics),

@@ -55,6 +55,7 @@ func (s *TenantService) GetOutletWABAConfig(tenantID, outletID string) (*models.
 	// Set headers
 	req.Header.Set("X-Tenant-Id", tenantID)
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Internal-Api-Key", s.config.TenantServiceInternalAPIKey)
 
 	// Send request
 	resp, err := s.client.Do(req)

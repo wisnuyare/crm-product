@@ -54,6 +54,7 @@ export class MessageController {
           websocketService.emitHandoffRequest(dto.conversation_id, {
             conversation_id: dto.conversation_id,
             reason: handoffDetection.reason,
+            requested: true,
           });
 
           // Include handoff info in response

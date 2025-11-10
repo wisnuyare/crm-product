@@ -13,6 +13,16 @@ import { UpdateOutletDto } from './dto/update-outlet.dto';
 import { QuotaService } from '../quota/quota.service';
 import { CryptoService } from '../../crypto/crypto.service';
 
+interface SanitizedOutlet
+  extends Omit<
+    Outlet,
+    | 'waba_access_token'
+  > {
+  has_waba_access_token: boolean;
+}
+
+type OutletResponse = SanitizedOutlet | (SanitizedOutlet & { waba_access_token: string });
+
 @Injectable()
 export class OutletsService {
   constructor(
@@ -22,7 +32,7 @@ export class OutletsService {
     private readonly cryptoService: CryptoService,
   ) {}
 
-  async create(createOutletDto: CreateOutletDto): Promise<Outlet> {
+  async create(createOutletDto: CreateOutletDto): Promise<OutletResponse> {
     // ✅ Check quota limit before creating outlet
     try {
       await this.quotaService.checkOutletLimit(createOutletDto.tenantId);
@@ -41,6 +51,10 @@ export class OutletsService {
       throw new ConflictException(
         `Outlet with phone number '${createOutletDto.wabaPhoneNumber}' already exists`,
       );
+    }
+
+    if (!createOutletDto.wabaAccessToken) {
+      throw new BadRequestException('WABA access token is required');
     }
 
     // Encrypt WABA access token
@@ -64,35 +78,26 @@ export class OutletsService {
       ],
     );
 
-    // Decrypt token for the response
-    outlet.waba_access_token = this.cryptoService.decrypt(outlet.waba_access_token);
-
-    return outlet;
+    return this.buildOutletResponse(outlet, false);
   }
 
-  async findAll(tenantId: string): Promise<Outlet[]> {
+  async findAll(tenantId: string): Promise<OutletResponse[]> {
     const outlets = await this.db.queryMany<Outlet>(
       'SELECT * FROM outlets WHERE tenant_id = $1 ORDER BY created_at DESC',
       [tenantId],
     );
-    return outlets.map(o => ({
-      ...o,
-      waba_access_token: this.cryptoService.decrypt(o.waba_access_token),
-    }));
+    return outlets.map((outlet) => this.buildOutletResponse(outlet, false));
   }
 
-  async findByTenant(tenantId: string): Promise<Outlet[]> {
+  async findByTenant(tenantId: string): Promise<OutletResponse[]> {
     const outlets = await this.db.queryMany<Outlet>(
       'SELECT * FROM outlets WHERE tenant_id = $1 ORDER BY created_at DESC',
       [tenantId],
     );
-    return outlets.map(o => ({
-      ...o,
-      waba_access_token: this.cryptoService.decrypt(o.waba_access_token),
-    }));
+    return outlets.map((outlet) => this.buildOutletResponse(outlet, false));
   }
 
-  async findOne(id: string, tenantId: string): Promise<Outlet> {
+  async findOne(id: string, tenantId: string, includeSecret = false): Promise<OutletResponse> {
     const outlet = await this.db.queryOne<Outlet>(
       'SELECT * FROM outlets WHERE id = $1 AND tenant_id = $2',
       [id, tenantId],
@@ -102,11 +107,10 @@ export class OutletsService {
       throw new NotFoundException(`Outlet with ID '${id}' not found`);
     }
 
-    outlet.waba_access_token = this.cryptoService.decrypt(outlet.waba_access_token);
-    return outlet;
+    return this.buildOutletResponse(outlet, includeSecret);
   }
 
-  async update(id: string, updateOutletDto: UpdateOutletDto, tenantId: string): Promise<Outlet> {
+  async update(id: string, updateOutletDto: UpdateOutletDto, tenantId: string): Promise<OutletResponse> {
     // Check if outlet exists and belongs to tenant
     const existing = await this.db.queryOne<Outlet>(
       'SELECT * FROM outlets WHERE id = $1 AND tenant_id = $2',
@@ -175,8 +179,7 @@ export class OutletsService {
     }
 
     if (updates.length === 0) {
-      existing.waba_access_token = this.cryptoService.decrypt(existing.waba_access_token);
-      return existing;
+      return this.buildOutletResponse(existing, false);
     }
 
     values.push(id);
@@ -189,8 +192,7 @@ export class OutletsService {
     `;
 
     const outlet = await this.db.queryOne<Outlet>(query, values);
-    outlet.waba_access_token = this.cryptoService.decrypt(outlet.waba_access_token);
-    return outlet;
+    return this.buildOutletResponse(outlet, false);
   }
 
   async remove(id: string, tenantId: string): Promise<void> {
@@ -204,5 +206,33 @@ export class OutletsService {
     }
 
     await this.db.query('DELETE FROM outlets WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+  }
+  private buildOutletResponse(outlet: Outlet, includeSecret = false): OutletResponse {
+    if (includeSecret) {
+      return {
+        id: outlet.id,
+        tenant_id: outlet.tenant_id,
+        name: outlet.name,
+        waba_phone_number: outlet.waba_phone_number,
+        waba_phone_number_id: outlet.waba_phone_number_id,
+        waba_business_account_id: outlet.waba_business_account_id,
+        created_at: outlet.created_at,
+        status: outlet.status,
+        has_waba_access_token: Boolean(outlet.waba_access_token),
+        waba_access_token: this.cryptoService.decrypt(outlet.waba_access_token),
+      };
+    }
+
+    return {
+      id: outlet.id,
+      tenant_id: outlet.tenant_id,
+      name: outlet.name,
+      waba_phone_number: outlet.waba_phone_number,
+      waba_phone_number_id: outlet.waba_phone_number_id,
+      waba_business_account_id: outlet.waba_business_account_id,
+      created_at: outlet.created_at,
+      status: outlet.status,
+      has_waba_access_token: Boolean(outlet.waba_access_token),
+    };
   }
 }

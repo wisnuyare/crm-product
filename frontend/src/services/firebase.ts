@@ -5,12 +5,12 @@ import { getAuth } from "firebase/auth";
 // TODO: Add your own Firebase configuration from your Firebase project settings
 // It's recommended to store these in environment variables for security
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCZ4pnQABquhK4Vgq9vkvc6eSVo-0uIdYs",
+  authDomain: "crm-product-fb.firebaseapp.com",
+  projectId: "crm-product-fb",
+  storageBucket: "crm-product-fb.firebasestorage.app",
+  messagingSenderId: "806200656983",
+  appId: "1:806200656983:web:aed9d3addb8a83af2fcf12"
 };
 
 // Initialize Firebase

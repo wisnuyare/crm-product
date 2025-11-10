@@ -11,6 +11,7 @@ type Config struct {
 	Port                    string
 	Environment             string
 	TenantServiceURL        string
+	TenantServiceInternalAPIKey string
 	ConversationServiceURL  string
 	MaxRetries              int
 	InitialBackoffSeconds   int
@@ -24,6 +25,7 @@ func Load() *Config {
 		Port:                    getEnv("PORT", "3006"),
 		Environment:             getEnv("ENVIRONMENT", "development"),
 		TenantServiceURL:        getEnv("TENANT_SERVICE_URL", "http://tenant-service:3001"),
+		TenantServiceInternalAPIKey: getEnv("TENANT_SERVICE_INTERNAL_API_KEY", "dev-internal-key"),
 		ConversationServiceURL:  getEnv("CONVERSATION_SERVICE_URL", "http://conversation-service:3004"),
 		MaxRetries:              getEnvAsInt("MAX_RETRIES", 3),
 		InitialBackoffSeconds:   getEnvAsInt("INITIAL_BACKOFF_SECONDS", 1),

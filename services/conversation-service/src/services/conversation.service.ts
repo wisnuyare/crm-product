@@ -168,6 +168,28 @@ export class ConversationService {
     return result.rows[0] || null;
   }
 
+  async releaseHandoff(
+    conversationId: string,
+    tenantId: string
+  ): Promise<Conversation | null> {
+    const query = `
+      UPDATE conversations
+      SET handoff_requested = false,
+          handoff_reason = NULL,
+          handoff_agent_id = NULL,
+          status = 'active'
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING *
+    `;
+
+    const result = await db.query<Conversation>(query, [
+      conversationId,
+      tenantId,
+    ]);
+
+    return result.rows[0] || null;
+  }
+
   async assignAgent(
     conversationId: string,
     tenantId: string,

@@ -163,12 +163,45 @@ export class ConversationController {
       websocketService.emitHandoffRequest(id, {
         conversation_id: id,
         reason,
+        requested: true,
         agent_id,
       });
 
       res.json(conversation);
     } catch (error: any) {
       console.error('Error requesting handoff:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  /**
+   * Release handoff back to automation
+   * POST /api/v1/conversations/:id/handoff/release
+   */
+  async releaseHandoff(req: Request, res: Response) {
+    try {
+      const tenantId = req.headers['x-tenant-id'] as string;
+      const { id } = req.params;
+
+      if (!tenantId) {
+        return res.status(400).json({ error: 'X-Tenant-Id header required' });
+      }
+
+      const conversation = await conversationService.releaseHandoff(id, tenantId);
+
+      if (!conversation) {
+        return res.status(404).json({ error: 'Conversation not found' });
+      }
+
+      websocketService.emitHandoffRequest(id, {
+        conversation_id: id,
+        reason: null,
+        requested: false,
+      });
+
+      res.json(conversation);
+    } catch (error: any) {
+      console.error('Error releasing handoff:', error);
       res.status(500).json({ error: error.message });
     }
   }

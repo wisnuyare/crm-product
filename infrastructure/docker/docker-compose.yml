@@ -108,6 +108,8 @@ services:
       - PUBSUB_EMULATOR_HOST=pubsub-emulator:8085
       - PORT=3001
       - CORS_ORIGIN=http://localhost:5173
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      - INTERNAL_API_KEY=dev-internal-key
     volumes:
       - ../../services/tenant-service/src:/app/src
     networks:
@@ -226,6 +228,7 @@ services:
       - PORT=3006
       - ENVIRONMENT=development
       - TENANT_SERVICE_URL=http://tenant-service:3001
+      - TENANT_SERVICE_INTERNAL_API_KEY=dev-internal-key
       - CONVERSATION_SERVICE_URL=http://conversation-service:3004
       - MAX_RETRIES=3
       - INITIAL_BACKOFF_SECONDS=1

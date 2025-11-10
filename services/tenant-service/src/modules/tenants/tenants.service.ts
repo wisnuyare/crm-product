@@ -61,7 +61,7 @@ export class TenantsService {
     `;
 
     const tenants = await this.db.queryMany<TenantWithRelations>(query, [tenantId]);
-    return tenants;
+    return tenants.map((tenant) => this.sanitizeTenantRelations(tenant));
   }
 
   async findOne(id: string, tenantId: string): Promise<TenantWithRelations> {
@@ -86,7 +86,7 @@ export class TenantsService {
       throw new NotFoundException(`Tenant with ID '${id}' not found`);
     }
 
-    return tenant;
+    return this.sanitizeTenantRelations(tenant);
   }
 
   async findBySlug(slug: string): Promise<TenantWithRelations> {
@@ -111,7 +111,7 @@ export class TenantsService {
       throw new NotFoundException(`Tenant with slug '${slug}' not found`);
     }
 
-    return tenant;
+    return this.sanitizeTenantRelations(tenant);
   }
 
   async update(id: string, updateTenantDto: UpdateTenantDto, tenantId: string): Promise<Tenant> {
@@ -245,5 +245,21 @@ export class TenantsService {
     );
 
     return updated;
+  }
+
+  private sanitizeTenantRelations(tenant: TenantWithRelations): TenantWithRelations {
+    if (Array.isArray(tenant.outlets)) {
+      tenant.outlets = tenant.outlets.map((outlet: any) => {
+        if (!outlet) {
+          return outlet;
+        }
+        const { waba_access_token, ...rest } = outlet;
+        return {
+          ...rest,
+          has_waba_access_token: Boolean(waba_access_token),
+        };
+      });
+    }
+    return tenant;
   }
 }

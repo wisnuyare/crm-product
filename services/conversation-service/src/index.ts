@@ -118,6 +118,11 @@ router.post(
   conversationController.requestHandoff.bind(conversationController)
 );
 
+router.post(
+  '/conversations/:id/handoff/release',
+  conversationController.releaseHandoff.bind(conversationController)
+);
+
 router.put(
   '/conversations/:id/assign',
   conversationController.assignAgent.bind(conversationController)

@@ -2,20 +2,24 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardHeader } from '../components/ui/Card';
 import { analyticsService } from '../services/analytics.service';
 import { billingService } from '../services/billing.service';
-import { MOCK_TENANT_ID } from '../services/api';
 import { MessageSquare, TrendingUp, Users, DollarSign } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export function Dashboard() {
+  const { tenantId } = useAuth();
+
   // Fetch tenant summary
   const { data: summary, isLoading: summaryLoading } = useQuery({
-    queryKey: ['tenant-summary'],
+    queryKey: ['tenant-summary', tenantId],
     queryFn: () => analyticsService.getTenantSummary({}),
+    enabled: !!tenantId,
   });
 
   // Fetch quota status
   const { data: quota, isLoading: quotaLoading } = useQuery({
-    queryKey: ['quota-status'],
-    queryFn: () => billingService.getQuotaStatus(MOCK_TENANT_ID),
+    queryKey: ['quota-status', tenantId],
+    queryFn: () => billingService.getQuotaStatus(tenantId!),
+    enabled: !!tenantId,
   });
 
   if (summaryLoading || quotaLoading) {

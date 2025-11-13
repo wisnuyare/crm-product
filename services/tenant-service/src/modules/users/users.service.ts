@@ -43,6 +43,38 @@ export class UsersService {
     return user;
   }
 
+  async invite(email: string, role: string, tenantId: string): Promise<User> {
+    // Check if email already exists for this tenant
+    const existingEmail = await this.db.queryOne<User>(
+      'SELECT id FROM users WHERE tenant_id = $1 AND email = $2',
+      [tenantId, email],
+    );
+
+    if (existingEmail) {
+      throw new ConflictException(
+        `User with email '${email}' already exists for this tenant`,
+      );
+    }
+
+    // Validate role
+    const validRoles = ['admin', 'agent', 'viewer'];
+    if (!validRoles.includes(role)) {
+      throw new ConflictException(
+        `Invalid role '${role}'. Must be one of: ${validRoles.join(', ')}`,
+      );
+    }
+
+    // Insert invited user (firebase_uid is NULL until they sign up)
+    const user = await this.db.queryOne<User>(
+      `INSERT INTO users (tenant_id, email, role)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [tenantId, email, role],
+    );
+
+    return user;
+  }
+
   async findAll(tenantId: string): Promise<User[]> {
     const users = await this.db.queryMany<User>(
       'SELECT * FROM users WHERE tenant_id = $1 ORDER BY created_at DESC',

@@ -1,3 +1,5 @@
+import { auth } from './firebase';
+
 // Base API configuration
 export const API_BASE_URLS = {
   tenant: 'http://localhost:3001',
@@ -11,12 +13,24 @@ export const API_BASE_URLS = {
   order: 'http://localhost:3009',
 };
 
-// Mock tenant ID for testing
-export const MOCK_TENANT_ID = '550e8400-e29b-41d4-a716-446655440000';
-
-// Fetch wrapper with error handling
+// Fetch wrapper with Firebase JWT authentication
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('authToken');
+  // Get current Firebase user and JWT token
+  const user = auth.currentUser;
+  if (!user) {
+    // Redirect to login if not authenticated
+    window.location.href = '/login';
+    throw new Error('User not authenticated. Please log in.');
+  }
+
+  let idToken: string;
+  try {
+    idToken = await user.getIdToken();
+  } catch (error) {
+    console.error('Failed to get ID token:', error);
+    window.location.href = '/login';
+    throw new Error('Authentication failed. Please log in again.');
+  }
 
   const isFormData = typeof FormData !== 'undefined' && options?.body instanceof FormData;
   const rawHeaders = options?.headers;
@@ -28,8 +42,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   }
 
   const headers: Record<string, string> = {
-    'X-Tenant-Id': MOCK_TENANT_ID,
-    ...(token && { Authorization: `Bearer ${token}` }),
+    Authorization: `Bearer ${idToken}`,
     ...customHeaders,
   };
 
@@ -44,14 +57,23 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   // Handle unauthorized
   if (response.status === 401) {
-    localStorage.removeItem('auth_token');
     window.location.href = '/login';
-    throw new Error('Unauthorized');
+    throw new Error('Unauthorized. Please log in again.');
+  }
+
+  // Handle forbidden
+  if (response.status === 403) {
+    throw new Error('Access denied. You do not have permission to perform this action.');
   }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
     throw new Error(error.message || 'Request failed');
+  }
+
+  // Handle 204 No Content
+  if (response.status === 204) {
+    return null;
   }
 
   return response.json();

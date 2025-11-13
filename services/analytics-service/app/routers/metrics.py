@@ -6,7 +6,7 @@ from uuid import UUID
 from datetime import date, timedelta
 from typing import Optional
 
-from app.models import DashboardMetrics, TenantSummary
+from app.models import DashboardMetrics, TenantSummary, PlatformSummary
 from app.services.metrics_service import metrics_service
 
 router = APIRouter(prefix="/api/v1/metrics", tags=["metrics"])
@@ -133,7 +133,7 @@ async def get_tenant_summary(
 # TODO: Implement proper owner/admin authentication
 # from app.dependencies import get_owner_user
 
-@router.get("/platform/summary", response_model="PlatformSummary")
+@router.get("/platform/summary", response_model=PlatformSummary)
 async def get_platform_summary(
     # current_user: dict = Depends(get_owner_user), # Uncomment for production
     start_date: Optional[date] = Query(None, description="Start date (defaults to 30 days ago)"),

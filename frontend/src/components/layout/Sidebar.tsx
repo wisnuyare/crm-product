@@ -8,26 +8,29 @@ import {
   ShoppingCart,
   BarChart3,
   Settings,
+  Users,
   LogOut,
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../services/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Conversations', href: '/conversations', icon: MessageSquare },
-  { name: 'Knowledge Base', href: '/knowledge', icon: BookOpen },
-  { name: 'Bookings', href: '/bookings', icon: Calendar },
-  { name: 'Products', href: '/products', icon: Package },
-  { name: 'Orders', href: '/orders', icon: ShoppingCart },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['admin', 'agent', 'viewer'] },
+  { name: 'Conversations', href: '/conversations', icon: MessageSquare, roles: ['admin', 'agent', 'viewer'] },
+  { name: 'Knowledge Base', href: '/knowledge', icon: BookOpen, roles: ['admin', 'agent'] },
+  { name: 'Bookings', href: '/bookings', icon: Calendar, roles: ['admin', 'agent'] },
+  { name: 'Products', href: '/products', icon: Package, roles: ['admin', 'agent'] },
+  { name: 'Orders', href: '/orders', icon: ShoppingCart, roles: ['admin', 'agent'] },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3, roles: ['admin', 'agent', 'viewer'] },
+  { name: 'Users', href: '/users', icon: Users, roles: ['admin'] },
+  { name: 'Settings', href: '/settings', icon: Settings, roles: ['admin'] },
 ];
 
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  // const auth = getAuth();
+  const { role, user } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -40,6 +43,11 @@ export function Sidebar() {
     }
   };
 
+  // Filter navigation items based on user role
+  const visibleNavigation = navigation.filter((item) =>
+    role ? item.roles.includes(role) : true
+  );
+
   return (
     <div className="flex h-screen w-64 flex-col bg-gray-900">
       {/* Logo */}
@@ -49,7 +57,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navigation.map((item) => {
+        {visibleNavigation.map((item) => {
           const isActive = location.pathname === item.href;
           return (
             <Link
@@ -81,7 +89,10 @@ export function Sidebar() {
           Logout
         </button>
         <div className="mt-4 text-xs text-gray-500">
-          <p>Tenant: Demo</p>
+          <p className="truncate">{user?.email || 'Not logged in'}</p>
+          <p className="mt-1 capitalize">
+            {role && <span className="font-semibold text-blue-400">{role}</span>}
+          </p>
           <p className="mt-1">v1.0.0</p>
         </div>
       </div>

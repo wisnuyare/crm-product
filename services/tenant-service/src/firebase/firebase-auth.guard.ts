@@ -27,20 +27,10 @@ export class FirebaseAuthGuard implements CanActivate {
       return true;
     }
 
-    // DEVELOPMENT MODE: Bypass auth if Firebase is not configured
+    // Enforce Firebase authentication in ALL environments
     if (!this.firebaseService.isConfigured()) {
-      this.logger.warn('⚠️  Firebase not configured - bypassing authentication (DEV MODE)');
-      const request = context.switchToHttp().getRequest();
-
-      // Mock user for development
-      request.user = {
-        uid: '00000000-0000-0000-0000-000000000001',
-        email: 'dev@example.com',
-        tenantId: '550e8400-e29b-41d4-a716-446655440000',
-        role: 'admin',
-      };
-
-      return true;
+      this.logger.error('❌ Firebase not configured - authentication is REQUIRED');
+      throw new UnauthorizedException('Authentication service is not properly configured');
     }
 
     const request = context.switchToHttp().getRequest();

@@ -30,6 +30,18 @@ export class UsersController {
     return await this.usersService.create(createUserDto);
   }
 
+  @Post('invite')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Invite a new user (creates user without Firebase account)' })
+  @ApiResponse({ status: 201, description: 'User invited successfully', type: User })
+  @ApiResponse({ status: 409, description: 'User already exists' })
+  async invite(
+    @Body() body: { email: string; role: string },
+    @TenantId() tenantId: string,
+  ): Promise<User> {
+    return await this.usersService.invite(body.email, body.role, tenantId);
+  }
+
   @Get()
   @Roles('admin')
   @ApiOperation({ summary: 'Get all users for current tenant' })

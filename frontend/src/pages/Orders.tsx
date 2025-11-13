@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { ShoppingCart, Package, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { API_BASE_URLS, api } from '../services/api';
 
 interface OrderItem {
   id: string;
@@ -59,9 +60,6 @@ export function Orders() {
   const [activeTab, setActiveTab] = useState<OrderStatus>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  const TENANT_ID = '00000000-0000-0000-0000-000000000001';
-  const API_URL = 'http://localhost:3009';
-
   // Fetch orders
   useEffect(() => {
     fetchOrders();
@@ -78,16 +76,8 @@ export function Orders() {
         params.append('status', activeTab);
       }
 
-      const response = await fetch(`${API_URL}/api/v1/orders?${params}`, {
-        headers: {
-          'X-Tenant-Id': TENANT_ID
-        }
-      });
-
-      if (response.ok) {
-        const data: OrdersResponse = await response.json();
-        setOrders(data.orders || []);
-      }
+      const data: OrdersResponse = await api.order.get(`/api/v1/orders?${params}`);
+      setOrders(data.orders || []);
     } catch (error) {
       console.error('Error fetching orders:', error);
     } finally {

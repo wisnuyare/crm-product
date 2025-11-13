@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Card } from '../components/ui/Card';
-import { API_BASE_URLS, api, MOCK_TENANT_ID } from '../services/api';
+import { API_BASE_URLS, api } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { auth } from '../services/firebase';
 
 type ConversationSummary = {
   id: string;
@@ -68,6 +70,7 @@ const formatTimestamp = (value?: string | null) => {
 };
 
 export function Conversations() {
+  const { tenantId } = useAuth();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
@@ -93,12 +96,23 @@ export function Conversations() {
   }, [selectedConversationId]);
 
   useEffect(() => {
-    const socket = io(API_BASE_URLS.conversation, {
-      transports: ['websocket'],
-      reconnectionDelayMax: 5000,
-    });
-    socketRef.current = socket;
-    socket.emit('tenant:join', { tenant_id: MOCK_TENANT_ID });
+    if (!tenantId) return;
+
+    const initSocket = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const token = await user.getIdToken();
+
+      const socket = io(API_BASE_URLS.conversation, {
+        transports: ['websocket'],
+        reconnectionDelayMax: 5000,
+        auth: {
+          token,
+        },
+      });
+      socketRef.current = socket;
+      socket.emit('tenant:join', { tenant_id: tenantId });
 
     socket.on('conversation:new', (conversation: ConversationSummary) => {
       setConversations((prev) => {
@@ -150,22 +164,28 @@ export function Conversations() {
       }
     });
 
-    socket.on(
-      'conversation:status',
-      (payload: { conversation_id: string; status: ConversationSummary['status'] }) => {
-        setConversations((prev) =>
-          prev.map((conv) =>
-            conv.id === payload.conversation_id ? { ...conv, status: payload.status } : conv,
-          ),
-        );
-      },
-    );
+      socket.on(
+        'conversation:status',
+        (payload: { conversation_id: string; status: ConversationSummary['status'] }) => {
+          setConversations((prev) =>
+            prev.map((conv) =>
+              conv.id === payload.conversation_id ? { ...conv, status: payload.status } : conv,
+            ),
+          );
+        },
+      );
+    };
+
+    initSocket();
 
     return () => {
-      socket.disconnect();
-      socketRef.current = null;
+      const socket = socketRef.current;
+      if (socket) {
+        socket.disconnect();
+        socketRef.current = null;
+      }
     };
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     const socket = socketRef.current;

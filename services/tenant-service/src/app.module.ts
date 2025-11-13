@@ -10,6 +10,7 @@ import { OutletsModule } from './modules/outlets/outlets.module';
 import { UsersModule } from './modules/users/users.module';
 import { QuotaModule } from './modules/quota/quota.module';
 import { HealthController } from './health.controller';
+import { AuthController } from './modules/auth/auth.controller';
 import { TenantContextMiddleware } from './middleware/tenant-context.middleware';
 import { MetricsModule } from './metrics/metrics.module';
 import { CryptoModule } from './crypto/crypto.module';
@@ -40,7 +41,7 @@ import { CryptoModule } from './crypto/crypto.module';
     // Monitoring
     MetricsModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, AuthController],
   providers: [
     // Global guards (applied to all routes)
     {

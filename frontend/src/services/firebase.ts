@@ -1,9 +1,18 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User,
+  signInWithCustomToken
+} from "firebase/auth";
 
-// TODO: Add your own Firebase configuration from your Firebase project settings
-// It's recommended to store these in environment variables for security
+// Firebase configuration from Firebase Console
 const firebaseConfig = {
   apiKey: "AIzaSyCZ4pnQABquhK4Vgq9vkvc6eSVo-0uIdYs",
   authDomain: "crm-product-fb.firebaseapp.com",
@@ -16,5 +25,35 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase Authentication and get a reference to the service
+// Initialize Firebase Authentication
 export const auth = getAuth(app);
+
+// Google Auth Provider
+export const googleProvider = new GoogleAuthProvider();
+
+// Auth helper functions
+export const signInWithEmail = (email: string, password: string) => {
+  return signInWithEmailAndPassword(auth, email, password);
+};
+
+export const signInWithGoogle = () => {
+  return signInWithPopup(auth, googleProvider);
+};
+
+export const signUpWithEmail = async (email: string, password: string) => {
+  // This will be handled by backend signup endpoint
+  // which creates Firebase user + sets custom claims
+  throw new Error("Use backend signup endpoint at /api/v1/auth/signup");
+};
+
+export const signInWithToken = (token: string) => {
+  return signInWithCustomToken(auth, token);
+};
+
+export const logOut = () => {
+  return signOut(auth);
+};
+
+export const onAuthChange = (callback: (user: User | null) => void) => {
+  return onAuthStateChanged(auth, callback);
+};

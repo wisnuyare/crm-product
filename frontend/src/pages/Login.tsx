@@ -1,51 +1,107 @@
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import { signInWithEmailAndPassword } from 'firebase/auth';
-// import { auth } from '../services/firebase';
+import { signInWithEmail, signInWithGoogle } from '../services/firebase';
 
 const LoginPage = () => {
-  // const [email, setEmail] = useState('');
-  // const [password, setPassword] = useState('');
-  // const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Bypass authentication for local development
-    localStorage.setItem('authToken', 'dummy-auth-token');
-    localStorage.setItem('userEmail', 'dev@example.com');
-    navigate('/');
-  }, [navigate]);
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
 
-  // const handleLogin = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   setError(null);
-  //   try {
-  //     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  //     const user = userCredential.user;
-  //     const token = await user.getIdToken();
-      
-  //     // Store the token and user info securely
-  //     localStorage.setItem('authToken', token);
-  //     localStorage.setItem('userEmail', user.email || '');
+    try {
+      const userCredential = await signInWithEmail(email, password);
+      const user = userCredential.user;
 
-  //     // TODO: Implement logic to check for owner/super-admin role
-  //     // For now, we'll assume a specific email is the owner
-  //     if (user.email === 'owner@example.com') {
-  //       navigate('/owner-dashboard');
-  //     } else {
-  //       navigate('/');
-  //     }
-  //   } catch (error) {
-  //     setError('Failed to login. Please check your credentials.');
-  //     console.error('Login error:', error);
-  //   }
-  // };
+      // Get ID token (includes custom claims)
+      const idToken = await user.getIdToken();
+      const idTokenResult = await user.getIdTokenResult();
+
+      // Store token
+      localStorage.setItem('authToken', idToken);
+      localStorage.setItem('userEmail', user.email || '');
+
+      // Check if user has tenant_id (custom claim)
+      if (!idTokenResult.claims.tenant_id) {
+        setError('Account not properly configured. Please contact administrator.');
+        setLoading(false);
+        return;
+      }
+
+      // Navigate to dashboard
+      navigate('/');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email.');
+      } else if (err.code === 'auth/wrong-password') {
+        setError('Incorrect password.');
+      } else if (err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password.');
+      } else {
+        setError('Failed to login. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const result = await signInWithGoogle();
+      const user = result.user;
+
+      // Send ID token to backend for verification and custom claims setup
+      const idToken = await user.getIdToken();
+
+      const response = await fetch('http://localhost:3001/api/v1/auth/google-signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Google sign-in failed. Please contact administrator.');
+      }
+
+      // Store token
+      localStorage.setItem('authToken', idToken);
+      localStorage.setItem('userEmail', user.email || '');
+
+      // Force token refresh to get custom claims
+      await user.getIdToken(true);
+
+      // Navigate to dashboard
+      navigate('/');
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setError(err.message || 'Failed to login with Google. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-center text-gray-900">Logging in...</h2>
-        {/* <form className="space-y-6" onSubmit={handleLogin}>
+        <h2 className="text-2xl font-bold text-center text-gray-900">Sign In</h2>
+
+        {error && (
+          <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            {error}
+          </div>
+        )}
+
+        <form className="space-y-6" onSubmit={handleEmailLogin}>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">
               Email address
@@ -59,7 +115,8 @@ const LoginPage = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="block w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="block w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                disabled={loading}
               />
             </div>
           </div>
@@ -77,22 +134,51 @@ const LoginPage = () => {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="block w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="block w-full px-3 py-2 placeholder-gray-400 border border-gray-300 rounded-md shadow-sm appearance-none focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                disabled={loading}
               />
             </div>
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
-
           <div>
             <button
               type="submit"
-              className="flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={loading}
+              className="flex justify-center w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              Sign in
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
-        </form> */}
+        </form>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or</span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded-md hover:bg-gray-50 disabled:opacity-50"
+        >
+          <img
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+            alt="Google"
+            className="w-5 h-5"
+          />
+          Sign in with Google
+        </button>
+
+        <p className="mt-4 text-center text-sm text-gray-600">
+          Don't have an account?{' '}
+          <a href="/signup" className="text-blue-600 hover:underline">
+            Sign up
+          </a>
+        </p>
       </div>
     </div>
   );

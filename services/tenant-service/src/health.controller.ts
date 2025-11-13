@@ -2,16 +2,18 @@ import { Controller, Get } from '@nestjs/common';
 import { Public } from './firebase/decorators';
 import { DatabaseService } from './database/database.service';
 
-@Controller('health')
+// Use empty path to bypass global prefix
+@Controller()
 export class HealthController {
   constructor(private readonly db: DatabaseService) {}
 
-  @Get()
+  @Get('health')
   @Public()
   async check() {
     const health = {
       status: 'ok',
       service: 'tenant-service',
+      version: '1.0.0',
       timestamp: new Date().toISOString(),
       checks: {
         database: 'unknown',

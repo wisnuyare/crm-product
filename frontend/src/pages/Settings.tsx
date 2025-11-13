@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { api, MOCK_TENANT_ID } from '../services/api';
+import { api } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 type OutletRecord = {
   id: string;
@@ -30,6 +31,7 @@ type QuotaStatus = {
 };
 
 const Settings = () => {
+  const { tenantId } = useAuth();
   const [outletName, setOutletName] = useState('');
   const [wabaPhoneNumber, setWabaPhoneNumber] = useState('');
   const [wabaPhoneNumberId, setWabaPhoneNumberId] = useState('');
@@ -79,10 +81,12 @@ const Settings = () => {
   };
 
   const loadSettings = async () => {
+    if (!tenantId) return;
+
     setIsLoading(true);
     try {
       const [tenantResponse, outletResponse, quotaResponse] = await Promise.all([
-        api.tenant.getTenant(MOCK_TENANT_ID),
+        api.tenant.getTenant(tenantId),
         api.tenant.listOutlets(),
         api.tenant.getQuotaStatus(),
       ]);
@@ -127,14 +131,19 @@ const Settings = () => {
   };
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (tenantId) {
+      loadSettings();
+    }
+  }, [tenantId]);
 
   const handleSave = async () => {
+    if (!tenantId) {
+      setStatus('Error: User not authenticated');
+      return;
+    }
+
     setStatus('Saving...');
     try {
-      // TODO: Replace MOCK_TENANT_ID with dynamic tenant ID from auth context
-      const tenantId = MOCK_TENANT_ID;
 
       // 1. Save LLM instructions
       await api.tenant.updateLlmInstructions(tenantId, llmInstructions);

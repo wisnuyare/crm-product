@@ -8,8 +8,8 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  User,
-  signInWithCustomToken
+  signInWithCustomToken,
+  type User
 } from "firebase/auth";
 
 // Firebase configuration from Firebase Console

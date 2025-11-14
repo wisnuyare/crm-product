@@ -100,8 +100,18 @@ async def upload_document(
 
     # Process document synchronously
     try:
+        import sys
+        print(f"\n{'='*80}", file=sys.stderr, flush=True)
+        print(f"DOCUMENT PROCESSING START", file=sys.stderr, flush=True)
+        print(f"Document ID: {doc_id}", file=sys.stderr, flush=True)
+        print(f"File path: {file_path}", file=sys.stderr, flush=True)
+        print(f"File type: {file_ext}", file=sys.stderr, flush=True)
+        print(f"{'='*80}\n", file=sys.stderr, flush=True)
+
         # Parse document
+        print(f"STEP 1: Parsing document...", file=sys.stderr, flush=True)
         text = document_parser.parse_document(file_path, file_ext)
+        print(f"✅ Parsed {len(text)} characters", file=sys.stderr, flush=True)
 
         if not text.strip():
             document.processing_status = "failed"
@@ -109,7 +119,9 @@ async def upload_document(
             raise HTTPException(status_code=400, detail="No text extracted from document")
 
         # Chunk and embed
+        print(f"STEP 2: Chunking and embedding...", file=sys.stderr, flush=True)
         chunks, embeddings = embeddings_service.process_document(text)
+        print(f"✅ Generated {len(chunks)} chunks and {len(embeddings)} embeddings", file=sys.stderr, flush=True)
 
         if not chunks:
             document.processing_status = "failed"
@@ -117,6 +129,7 @@ async def upload_document(
             raise HTTPException(status_code=400, detail="Failed to chunk document")
 
         # Store in Qdrant
+        print(f"STEP 3: Storing in Qdrant...", file=sys.stderr, flush=True)
         chunk_count = qdrant_service.upsert_vectors(
             document_id=doc_id,
             tenant_id=tenant_id,
@@ -124,6 +137,7 @@ async def upload_document(
             chunks=chunks,
             embeddings=embeddings
         )
+        print(f"✅ Stored {chunk_count} chunks in Qdrant", file=sys.stderr, flush=True)
 
         # Update document status
         document.processing_status = "completed"
@@ -133,6 +147,9 @@ async def upload_document(
         db.refresh(document)
 
     except Exception as e:
+        import traceback
+        print(f"❌ Document processing failed: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
         document.processing_status = "failed"
         db.commit()
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")

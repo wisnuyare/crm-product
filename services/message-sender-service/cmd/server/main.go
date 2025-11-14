@@ -25,6 +25,7 @@ func main() {
 	// Initialize handlers
 	healthHandler := handlers.NewHealthHandler(cfg)
 	messageHandler := handlers.NewMessageHandler(messageService)
+	webhookHandler := handlers.NewWebhookHandler(cfg)
 
 	// Setup router
 	router := gin.Default()
@@ -45,6 +46,13 @@ func main() {
 		{
 			messages.POST("/send", messageHandler.SendMessage)
 			messages.GET("/:messageId/status", messageHandler.GetMessageStatus)
+		}
+
+		// WhatsApp Webhook endpoints
+		webhook := v1.Group("/webhook")
+		{
+			webhook.GET("/whatsapp", webhookHandler.VerifyWebhook)
+			webhook.POST("/whatsapp", webhookHandler.ReceiveWebhook)
 		}
 	}
 

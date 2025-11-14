@@ -119,8 +119,8 @@ class ContextService:
 
                 return [
                     RAGContext(
-                        text=result["text"],
-                        source=result["source"],
+                        text=result["chunk_text"],
+                        source=result.get("document_filename", "unknown"),
                         score=result["score"],
                         chunk_index=result.get("chunk_index", 0),
                     )

@@ -32,6 +32,10 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     throw new Error('Authentication failed. Please log in again.');
   }
 
+  // Get token result to extract custom claims
+  const tokenResult = await user.getIdTokenResult();
+  const tenantId = tokenResult.claims.tenant_id as string | undefined;
+
   const isFormData = typeof FormData !== 'undefined' && options?.body instanceof FormData;
   const rawHeaders = options?.headers;
   let customHeaders: Record<string, string> = {};
@@ -45,6 +49,11 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     Authorization: `Bearer ${idToken}`,
     ...customHeaders,
   };
+
+  // Add X-Tenant-Id header if tenant ID is available
+  if (tenantId) {
+    headers['X-Tenant-Id'] = tenantId;
+  }
 
   if (!isFormData && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';

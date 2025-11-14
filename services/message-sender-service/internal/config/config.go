@@ -13,10 +13,13 @@ type Config struct {
 	TenantServiceURL        string
 	TenantServiceInternalAPIKey string
 	ConversationServiceURL  string
+	LLMOrchestrationURL     string
 	MaxRetries              int
 	InitialBackoffSeconds   int
 	MaxBackoffSeconds       int
 	RequestTimeoutSeconds   int
+	WebhookVerifyToken      string
+	WebhookAppSecret        string
 }
 
 // Load loads configuration from environment variables
@@ -27,10 +30,13 @@ func Load() *Config {
 		TenantServiceURL:        getEnv("TENANT_SERVICE_URL", "http://tenant-service:3001"),
 		TenantServiceInternalAPIKey: getEnv("TENANT_SERVICE_INTERNAL_API_KEY", "dev-internal-key"),
 		ConversationServiceURL:  getEnv("CONVERSATION_SERVICE_URL", "http://conversation-service:3004"),
+		LLMOrchestrationURL:     getEnv("LLM_ORCHESTRATION_URL", "http://llm-orchestration-service:3005"),
 		MaxRetries:              getEnvAsInt("MAX_RETRIES", 3),
 		InitialBackoffSeconds:   getEnvAsInt("INITIAL_BACKOFF_SECONDS", 1),
 		MaxBackoffSeconds:       getEnvAsInt("MAX_BACKOFF_SECONDS", 30),
 		RequestTimeoutSeconds:   getEnvAsInt("REQUEST_TIMEOUT_SECONDS", 10),
+		WebhookVerifyToken:      getEnv("WEBHOOK_VERIFY_TOKEN", "your-secure-verify-token-123"),
+		WebhookAppSecret:        getEnv("WEBHOOK_APP_SECRET", ""),
 	}
 
 	log.Printf("Configuration loaded: Port=%s, Environment=%s", cfg.Port, cfg.Environment)

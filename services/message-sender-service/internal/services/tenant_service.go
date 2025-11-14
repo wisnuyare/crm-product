@@ -144,3 +144,87 @@ func (s *TenantService) CheckQuota(tenantID string) (bool, error) {
 
 	return quotaResp.CanSendMessage, nil
 }
+
+// GetOutletByPhoneNumberID finds an outlet by WhatsApp phone number ID
+func (s *TenantService) GetOutletByPhoneNumberID(phoneNumberID string) (*OutletResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/outlets/by-phone/%s", s.baseURL, phoneNumberID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Internal-Api-Key", s.config.TenantServiceInternalAPIKey)
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch outlet: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("outlet not found for phone number ID %s: status=%d", phoneNumberID, resp.StatusCode)
+	}
+
+	var outlet OutletResponse
+	if err := json.Unmarshal(body, &outlet); err != nil {
+		return nil, fmt.Errorf("failed to parse outlet response: %w", err)
+	}
+
+	log.Printf("Found outlet: %s for phone number ID %s", outlet.ID, phoneNumberID)
+	return &outlet, nil
+}
+
+// GetKnowledgeBaseIDs fetches knowledge base IDs for an outlet
+func (s *TenantService) GetKnowledgeBaseIDs(tenantID, outletID string) ([]string, error) {
+	url := fmt.Sprintf("%s/api/v1/knowledge-bases?outlet_id=%s", s.config.TenantServiceURL, outletID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Tenant-Id", tenantID)
+
+	// Note: We're calling knowledge service, not tenant service
+	// Update URL to point to knowledge service
+	url = fmt.Sprintf("http://knowledge-service:3003/api/v1/knowledge-bases?outlet_id=%s", outletID)
+	req.URL.Host = "knowledge-service:3003"
+	req.URL.Scheme = "http"
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch knowledge bases: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return []string{}, nil // Return empty array if no KBs found
+	}
+
+	var kbs []struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(body, &kbs); err != nil {
+		return nil, fmt.Errorf("failed to parse KB response: %w", err)
+	}
+
+	kbIDs := make([]string, len(kbs))
+	for i, kb := range kbs {
+		kbIDs[i] = kb.ID
+	}
+
+	return kbIDs, nil
+}

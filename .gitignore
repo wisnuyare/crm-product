@@ -87,12 +87,9 @@ tmp/
 temp/
 *.tmp
 
-# Documentation files - Exclude all .md files except README.md files
+# Documentation files - Exclude all .md files except README.md
 *.md
 !README.md
-!CLAUDE.md
-!MISSING_FEATURES_ANALYSIS.md
-!KNOWLEDGE_BASE_TESTING.md
 !*/README.md
 
 # Local development scripts

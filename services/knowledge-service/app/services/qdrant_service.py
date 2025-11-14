@@ -1,7 +1,8 @@
 from typing import List, Dict, Any
 from uuid import UUID
+import requests
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
+from qdrant_client.models import Distance, VectorParams, PointStruct, Batch, Filter, FieldCondition, MatchValue, MatchAny
 from app.config import settings
 
 
@@ -42,34 +43,85 @@ class QdrantService:
         embeddings: List[List[float]]
     ) -> int:
         """Insert or update vectors in Qdrant"""
+        print(f"\n\n🔍 === UPSERT_VECTORS CALLED ===")
+        print(f"Document ID: {document_id}")
+        print(f"Tenant ID: {tenant_id}")
+        print(f"KB ID: {kb_id}")
+        print(f"Chunks count: {len(chunks)}")
+        print(f"Embeddings count: {len(embeddings)}")
+        if embeddings:
+            print(f"First embedding length: {len(embeddings[0])}")
+            print(f"First embedding type: {type(embeddings[0])}")
+        print(f"=================================\n\n")
+
         if len(chunks) != len(embeddings):
             raise ValueError("Number of chunks must match number of embeddings")
 
-        points = []
+        # Prepare data for Batch upload
+        ids = []
+        vectors = []
+        payloads = []
+
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            point = PointStruct(
-                id=f"{document_id}_{i}",
-                vector=embedding,
-                payload={
-                    "tenant_id": str(tenant_id),
-                    "kb_id": str(kb_id),
-                    "doc_id": str(document_id),
-                    "chunk_text": chunk,
-                    "chunk_index": i
-                }
-            )
-            points.append(point)
+            # Use hash of document_id + index as integer ID
+            point_id = abs(hash(f"{document_id}_{i}")) % (10 ** 18)
 
-        # Upsert points in batches of 100
+            ids.append(point_id)
+            vectors.append(embedding)
+            payloads.append({
+                "tenant_id": str(tenant_id),
+                "kb_id": str(kb_id),
+                "doc_id": str(document_id),
+                "chunk_text": chunk,
+                "chunk_index": i
+            })
+
+        # Upsert using direct REST API (bypassing Python client serialization issues)
         batch_size = 100
-        for i in range(0, len(points), batch_size):
-            batch = points[i:i + batch_size]
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=batch
-            )
+        for i in range(0, len(ids), batch_size):
+            batch_ids = ids[i:i + batch_size]
+            batch_vectors = vectors[i:i + batch_size]
+            batch_payloads = payloads[i:i + batch_size]
 
-        return len(points)
+            # Prepare points in Qdrant REST API format
+            points_data = []
+            for point_id, vector, payload in zip(batch_ids, batch_vectors, batch_payloads):
+                points_data.append({
+                    "id": point_id,
+                    "vector": vector,
+                    "payload": payload
+                })
+
+            # Direct REST API call to Qdrant
+            url = f"{settings.qdrant_url}/collections/{self.collection_name}/points"
+            payload = {"points": points_data}
+
+            # ULTRA DEBUG: Log everything
+            import sys
+            print(f"\n{'='*80}", file=sys.stderr, flush=True)
+            print(f"QDRANT UPSERT DEBUG", file=sys.stderr, flush=True)
+            print(f"URL: {url}", file=sys.stderr, flush=True)
+            print(f"Number of points: {len(points_data)}", file=sys.stderr, flush=True)
+            print(f"First point ID: {points_data[0]['id']}", file=sys.stderr, flush=True)
+            print(f"First vector length: {len(points_data[0]['vector'])}", file=sys.stderr, flush=True)
+            print(f"First vector type: {type(points_data[0]['vector'])}", file=sys.stderr, flush=True)
+            print(f"First vector[0] type: {type(points_data[0]['vector'][0])}", file=sys.stderr, flush=True)
+            print(f"First vector sample (first 5): {points_data[0]['vector'][:5]}", file=sys.stderr, flush=True)
+            print(f"Payload keys: {list(points_data[0]['payload'].keys())}", file=sys.stderr, flush=True)
+
+            # Check for NaN or Inf
+            import math
+            has_nan = any(math.isnan(v) or math.isinf(v) for v in points_data[0]['vector'])
+            print(f"Contains NaN/Inf: {has_nan}", file=sys.stderr, flush=True)
+            print(f"{'='*80}\n", file=sys.stderr, flush=True)
+
+            response = requests.put(url, json=payload, params={"wait": "true"})
+
+            if response.status_code != 200:
+                print(f"ERROR Response: {response.text}", file=sys.stderr, flush=True)
+                raise Exception(f"Qdrant upsert failed: {response.status_code} - {response.text}")
+
+        return len(ids)
 
     def search(
         self,
@@ -94,7 +146,7 @@ class QdrantService:
             must_conditions.append(
                 FieldCondition(
                     key="kb_id",
-                    match=MatchValue(any=kb_str_ids)
+                    match=MatchAny(any=kb_str_ids)
                 )
             )
 

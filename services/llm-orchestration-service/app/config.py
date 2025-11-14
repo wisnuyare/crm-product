@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     # RAG Settings
     rag_top_k: int = 5
-    rag_min_score: float = 0.7
+    rag_min_score: float = 0.5
 
     # Context Settings
     conversation_history_limit: int = 4

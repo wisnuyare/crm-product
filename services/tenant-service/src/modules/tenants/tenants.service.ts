@@ -8,6 +8,7 @@ import { DatabaseService } from '../../database/database.service';
 import { Tenant, TenantWithRelations } from '../../types/tenant.entity';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { UpdateCustomizationDto } from './dto/update-customization.dto';
 
 import { UpdateLlmConfigDto } from './dto/update-llm-config.dto';
 
@@ -242,6 +243,27 @@ export class TenantsService {
        WHERE id = $2 AND id = $3
        RETURNING *`,
       [JSON.stringify({ instructions }), id, tenantId],
+    );
+
+    return updated;
+  }
+
+  async updateCustomization(id: string, customizationDto: UpdateCustomizationDto, tenantId: string): Promise<Tenant> {
+    const tenant = await this.db.queryOne<Tenant>(
+      'SELECT id FROM tenants WHERE id = $1 AND id = $2',
+      [id, tenantId],
+    );
+
+    if (!tenant) {
+      throw new NotFoundException(`Tenant with ID '${id}' not found`);
+    }
+
+    const updated = await this.db.queryOne<Tenant>(
+      `UPDATE tenants
+       SET greeting_message = $1, error_message = $2, updated_at = NOW()
+       WHERE id = $3 AND id = $4
+       RETURNING *`,
+      [customizationDto.greeting_message, customizationDto.error_message, id, tenantId],
     );
 
     return updated;

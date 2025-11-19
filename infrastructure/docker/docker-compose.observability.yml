@@ -1,0 +1,117 @@
+# Extended docker-compose for Observability Stack
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+
+version: '3.8'
+
+services:
+  # Grafana Loki - Log Aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: crm-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    networks:
+      - crm-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Promtail - Log Shipper
+  promtail:
+    image: grafana/promtail:latest
+    container_name: crm-promtail
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail_positions:/tmp
+    networks:
+      - crm-network
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  # Add Loki as data source to Grafana
+  grafana:
+    environment:
+      # Add Loki provisioning
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    volumes:
+      # Mount dashboards and datasources
+      - grafana_dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana_datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_data:/var/lib/grafana
+
+  # Update Prometheus with alerting rules
+  prometheus:
+    volumes:
+      - ./prometheus-alerts.yml:/etc/prometheus/alerts.yml:ro
+
+  # Add logging labels to all services
+  llm-orchestration-service:
+    labels:
+      logging: "promtail"
+      service: "llm-orchestration-service"
+
+  message-sender-service:
+    labels:
+      logging: "promtail"
+      service: "message-sender-service"
+
+  tenant-service:
+    labels:
+      logging: "promtail"
+      service: "tenant-service"
+
+  conversation-service:
+    labels:
+      logging: "promtail"
+      service: "conversation-service"
+
+  knowledge-service:
+    labels:
+      logging: "promtail"
+      service: "knowledge-service"
+
+  booking-service:
+    labels:
+      logging: "promtail"
+      service: "booking-service"
+
+  billing-service:
+    labels:
+      logging: "promtail"
+      service: "billing-service"
+
+  analytics-service:
+    labels:
+      logging: "promtail"
+      service: "analytics-service"
+
+  order-service:
+    labels:
+      logging: "promtail"
+      service: "order-service"
+
+volumes:
+  loki_data:
+    driver: local
+  promtail_positions:
+    driver: local
+  grafana_dashboards:
+    driver: local
+  grafana_datasources:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  crm-network:
+    external: true

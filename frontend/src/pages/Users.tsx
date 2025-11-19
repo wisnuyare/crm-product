@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card } from '../components/ui/Card';
 import { Users as UsersIcon, UserPlus, Trash2, Shield, Mail, CheckCircle, Clock } from 'lucide-react';
 import { api } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 interface User {
   id: string;
@@ -23,6 +23,24 @@ export function Users() {
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
 
+  useEffect(() => {
+    if (currentUserRole === 'admin') {
+      fetchUsers();
+    }
+  }, [currentUserRole]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const data = (await api.tenant.get('/api/v1/users')) as User[];
+      setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Only admins can access this page
   if (currentUserRole !== 'admin') {
     return (
@@ -38,22 +56,6 @@ export function Users() {
     );
   }
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const data = await api.tenant.get('/api/v1/users');
-      setUsers(data);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setInviteError(null);
@@ -65,8 +67,9 @@ export function Users() {
       setInviteEmail('');
       setInviteRole('agent');
       fetchUsers(); // Refresh list
-    } catch (error: any) {
-      setInviteError(error.message || 'Failed to invite user');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to invite user';
+      setInviteError(message);
     } finally {
       setInviteLoading(false);
     }
@@ -295,7 +298,7 @@ export function Users() {
                 <select
                   id="role"
                   value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as any)}
+                  onChange={(e) => setInviteRole(e.target.value as 'admin' | 'agent' | 'viewer')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   disabled={inviteLoading}
                 >

@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import http from 'http';
 import cors from 'cors';
+import helmet from 'helmet';
 import { config } from './config';
 import { db } from './services/database.service';
 import { initializeWebSocket } from './services/websocket.service';
@@ -26,6 +27,7 @@ const requestCounter = new client.Counter({
 const wsService = initializeWebSocket(server);
 
 // Middleware
+app.use(helmet()); // Security headers
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

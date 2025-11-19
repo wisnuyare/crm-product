@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { analyticsService } from '../services/analytics.service';
-import { AlertCircle, Loader, TrendingUp, Users, MessagesSquare, Timer, CheckCircle, PhoneForwarded, DollarSign } from 'lucide-react';
+import { AlertCircle, TrendingUp, Users, MessagesSquare, Timer, CheckCircle, PhoneForwarded, DollarSign } from 'lucide-react';
 
 const StatCard = ({ title, value, icon: Icon, isLoading }: { title: string; value: string | number; icon: React.ElementType; isLoading: boolean }) => (
   <div className="p-6 bg-white rounded-lg shadow">

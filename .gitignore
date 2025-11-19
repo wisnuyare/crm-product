@@ -92,6 +92,9 @@ temp/
 !README.md
 !*/README.md
 
+# Documentation site (VitePress)
+docs-site/
+
 # Local development scripts
 start-dev.bat
 start-dev.sh

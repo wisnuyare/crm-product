@@ -16,6 +16,7 @@ import (
 // CreateProduct creates a new product
 func CreateProduct(c *gin.Context) {
 	tenantID := c.GetHeader("X-Tenant-Id")
+	log.Printf("[DEBUG] CreateProduct - Received X-Tenant-Id header: '%s'", tenantID)
 	if tenantID == "" {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: "X-Tenant-Id header is required"})
 		return
@@ -26,6 +27,8 @@ func CreateProduct(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.ErrorResponse{Error: err.Error()})
 		return
 	}
+
+	log.Printf("[DEBUG] CreateProduct - About to insert product with tenant_id: '%s', product_name: '%s'", tenantID, req.Name)
 
 	// Generate UUID
 	productID := uuid.New().String()

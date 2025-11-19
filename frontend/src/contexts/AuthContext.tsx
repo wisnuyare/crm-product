@@ -1,25 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { type User } from 'firebase/auth';
-import { auth, onAuthChange, logOut } from '../services/firebase';
-
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  tenantId: string | null;
-  role: string | null;
-  logout: () => Promise<void>;
-  refreshToken: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
-};
+import { onAuthChange, logOut } from '../services/firebase';
+import { AuthContext } from './AuthContextDef';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);

@@ -31,11 +31,18 @@ export class TenantContextMiddleware implements NestMiddleware {
     }
 
     try {
+      // Validate tenant ID is a valid UUID to prevent SQL injection
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(tenantId)) {
+        this.logger.warn(`Invalid tenant ID format: ${tenantId}`);
+        next();
+        return;
+      }
+
       // Set PostgreSQL session variable for Row-Level Security
-      await this.db.query(
-        `SET LOCAL app.current_tenant_id = $1`,
-        [tenantId]
-      );
+      // Note: SET LOCAL doesn't support parameterized queries, so we use string interpolation
+      // Safe because we validated UUID format above
+      await this.db.query(`SET LOCAL app.current_tenant_id = '${tenantId}'`);
 
       this.logger.debug(`Tenant context set: ${tenantId}`);
 

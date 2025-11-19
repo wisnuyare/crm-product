@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
-import { Calendar, Clock, User, ChevronLeft, ChevronRight, Plus, Edit2, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Edit2, Trash2 } from 'lucide-react';
 import BookingModal from '../components/bookings/BookingModal';
+import { Button } from '../components/ui/Button';
 
 // ... (Interface definitions are the same)
 

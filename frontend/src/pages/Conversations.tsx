@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Card } from '../components/ui/Card';
 import { API_BASE_URLS, api } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { auth } from '../services/firebase';
 
 type ConversationSummary = {
@@ -200,42 +200,44 @@ export function Conversations() {
     previousConversationRef.current = selectedConversationId;
   }, [selectedConversationId]);
 
-  const loadConversations = async () => {
+  const loadConversations = useCallback(async () => {
     setConversationsLoading(true);
     setError(null);
     try {
-      const data = await api.conversationService.getActiveConversations();
+      const data: ConversationSummary[] = await api.conversationService.getActiveConversations();
       setConversations(data);
       setHandoffNotice(null);
       if (data.length === 0) {
         setSelectedConversationId(null);
-      } else if (!selectedConversationId || !data.find((conv: ConversationSummary) => conv.id === selectedConversationId)) {
+      } else if (!selectedConversationId || !data.find((conv) => conv.id === selectedConversationId)) {
         setSelectedConversationId(data[0].id);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load conversations');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load conversations';
+      setError(message);
     } finally {
       setConversationsLoading(false);
     }
-  };
+  }, [selectedConversationId]);
 
-  const loadMessages = async (conversationId: string) => {
+  const loadMessages = useCallback(async (conversationId: string) => {
     setMessagesLoading(true);
     setError(null);
     try {
-      const data = await api.conversationService.getMessages(conversationId, 100);
+      const data: ConversationMessage[] = await api.conversationService.getMessages(conversationId, 100);
       setMessages(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load messages');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load messages';
+      setError(message);
       setMessages([]);
     } finally {
       setMessagesLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadConversations();
-  }, []);
+  }, [loadConversations]);
 
   useEffect(() => {
     if (selectedConversationId) {
@@ -244,9 +246,9 @@ export function Conversations() {
     } else {
       setMessages([]);
     }
-  }, [selectedConversationId]);
+  }, [selectedConversationId, loadMessages]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!selectedConversationId || !composerValue.trim()) {
       return;
     }
@@ -268,14 +270,15 @@ export function Conversations() {
       const newMessage = response.message || response;
       setMessages((prev) => [...prev, newMessage]);
       setComposerValue('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to send message');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to send message';
+      setError(message);
     } finally {
       setSending(false);
     }
-  };
+  }, [composerValue, isHandoffActive, selectedConversationId]);
 
-  const handleRequestHandoff = async () => {
+  const handleRequestHandoff = useCallback(async () => {
     if (!selectedConversationId || handoffLoading) {
       return;
     }
@@ -283,7 +286,7 @@ export function Conversations() {
     setHandoffNotice(null);
     setError(null);
     try {
-      const updatedConversation = await api.conversationService.requestHandoff(
+      const updatedConversation: ConversationSummary = await api.conversationService.requestHandoff(
         selectedConversationId,
         'Agent manually took over the conversation',
       );
@@ -292,14 +295,15 @@ export function Conversations() {
         prev.map((conv) => (conv.id === updatedConversation.id ? updatedConversation : conv)),
       );
       setHandoffNotice('LLM responses paused. You are now handling this conversation.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to request human handoff');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to request human handoff';
+      setError(message);
     } finally {
       setHandoffLoading(false);
     }
-  };
+  }, [handoffLoading, selectedConversationId]);
 
-  const handleResumeAutomation = async () => {
+  const handleResumeAutomation = useCallback(async () => {
     if (!selectedConversationId || handoffLoading) {
       return;
     }
@@ -307,19 +311,20 @@ export function Conversations() {
     setError(null);
     setHandoffNotice(null);
     try {
-      const updatedConversation = await api.conversationService.resumeHandoff(
+      const updatedConversation: ConversationSummary = await api.conversationService.resumeHandoff(
         selectedConversationId,
       );
       setConversations((prev) =>
         prev.map((conv) => (conv.id === updatedConversation.id ? updatedConversation : conv)),
       );
       setHandoffNotice('LLM resumed. Automated replies are enabled again.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to resume automation');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to resume automation';
+      setError(message);
     } finally {
       setHandoffLoading(false);
     }
-  };
+  }, [handoffLoading, selectedConversationId]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -542,7 +547,6 @@ export function Conversations() {
                 <textarea
                   id="composer"
                   rows={3}
-                  placeholder="Type your reply and press Enter to send…"
                   value={composerValue}
                   onChange={(event) => setComposerValue(event.target.value)}
                   onKeyDown={handleKeyDown}

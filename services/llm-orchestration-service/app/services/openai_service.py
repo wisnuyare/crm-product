@@ -11,6 +11,7 @@ from app.config import settings
 from app.models import GenerateResponse
 from app.services.booking_service import booking_service
 from app.services.order_service import order_service
+from app.services.customer_service import customer_service
 
 
 class OpenAIService:
@@ -166,8 +167,58 @@ class OpenAIService:
             },
         ]
 
+        # Define customer tools for function calling
+        self.customer_tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_customer_info",
+                    "description": "Get saved customer information by phone number. Use this BEFORE creating an order or booking to check if we have the customer's information on file.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "customer_phone": {
+                                "type": "string",
+                                "description": "Customer's phone number (with country code, e.g., '+628123456789')",
+                            },
+                        },
+                        "required": ["customer_phone"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "save_customer_info",
+                    "description": "Save or update customer information for future orders. Use this when customer provides their details for the first time or updates their information.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "customer_phone": {
+                                "type": "string",
+                                "description": "Customer's phone number (with country code, e.g., '+628123456789')",
+                            },
+                            "customer_name": {
+                                "type": "string",
+                                "description": "Customer's full name",
+                            },
+                            "email": {
+                                "type": "string",
+                                "description": "Customer's email address (optional)",
+                            },
+                            "address": {
+                                "type": "string",
+                                "description": "Customer's delivery address (optional)",
+                            },
+                        },
+                        "required": ["customer_phone", "customer_name"],
+                    },
+                },
+            },
+        ]
+
         # Combine all tools
-        self.tools = self.booking_tools + self.order_tools
+        self.tools = self.booking_tools + self.order_tools + self.customer_tools
 
     def count_tokens(self, messages: List[Dict[str, str]]) -> int:
         """
@@ -220,6 +271,7 @@ class OpenAIService:
         self,
         tool_call: Any,
         tenant_id: str,
+        conversation_id: Optional[str] = None,
     ) -> str:
         """
         Execute a tool call from OpenAI
@@ -227,6 +279,7 @@ class OpenAIService:
         Args:
             tool_call: Tool call object from OpenAI
             tenant_id: Tenant UUID for API calls
+            conversation_id: Optional conversation UUID for orders
 
         Returns:
             JSON string result of the tool call
@@ -269,10 +322,27 @@ class OpenAIService:
                     customer_phone=function_args.get("customer_phone"),
                     customer_name=function_args.get("customer_name"),
                     items=function_args.get("items", []),
-                    conversation_id=function_args.get("conversation_id"),
+                    conversation_id=conversation_id,  # Use conversation_id from parameter, not function args
                     pickup_date=function_args.get("pickup_date"),
                     fulfillment_type=function_args.get("fulfillment_type", "pickup"),
                     notes=function_args.get("notes"),
+                )
+                return json.dumps(result)
+
+            elif function_name == "get_customer_info":
+                result = await customer_service.get_customer_info(
+                    tenant_id=tenant_id,
+                    customer_phone=function_args.get("customer_phone"),
+                )
+                return json.dumps(result)
+
+            elif function_name == "save_customer_info":
+                result = await customer_service.save_customer_info(
+                    tenant_id=tenant_id,
+                    customer_phone=function_args.get("customer_phone"),
+                    customer_name=function_args.get("customer_name"),
+                    email=function_args.get("email"),
+                    address=function_args.get("address"),
                 )
                 return json.dumps(result)
 
@@ -359,7 +429,11 @@ class OpenAIService:
 
             # Execute each tool call
             for tool_call in response_message.tool_calls:
-                function_response = await self.execute_tool_call(tool_call, tenant_id)
+                function_response = await self.execute_tool_call(
+                    tool_call,
+                    tenant_id,
+                    conversation_id=str(conversation_id)
+                )
 
                 # Track function execution
                 functions_executed.append({

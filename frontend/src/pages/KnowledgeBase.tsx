@@ -131,8 +131,9 @@ export function KnowledgeBase() {
           kb.id === knowledgeBaseId ? { ...kb, document_count: docs.length } : kb,
         ),
       );
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch documents');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to fetch documents';
+      setError(message);
     } finally {
       setDocumentsLoading(false);
     }
@@ -149,7 +150,7 @@ export function KnowledgeBase() {
       ]);
 
       const docsEntries = await Promise.all(
-        kbData.map(async (kb) => {
+        kbData.map(async (kb: KnowledgeBaseRecord) => {
           const docs = await api.knowledgeService.listDocuments(kb.id);
           return [kb.id, docs] as [string, KnowledgeDocument[]];
         }),
@@ -166,8 +167,9 @@ export function KnowledgeBase() {
       setOutlets(outletData);
       setNewKbOutletId(outletData[0]?.id ?? '');
       setSelectedKbId((prev) => prev || kbData[0]?.id || null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load knowledge data');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load knowledge data';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -202,8 +204,9 @@ export function KnowledgeBase() {
       setNewKbName('');
       setNewKbDescription('');
       setSuccessMessage('Knowledge base created successfully.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to create knowledge base');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create knowledge base';
+      setError(message);
     } finally {
       setCreatingKb(false);
     }
@@ -227,8 +230,9 @@ export function KnowledgeBase() {
         setSelectedKbId(remaining[0]?.id || null);
       }
       setSuccessMessage('Knowledge base deleted.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete knowledge base');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete knowledge base';
+      setError(message);
     }
   };
 
@@ -249,8 +253,9 @@ export function KnowledgeBase() {
       await api.knowledgeService.uploadDocument(selectedKbId, file);
       await refreshDocuments(selectedKbId);
       setSuccessMessage('Document uploaded and processing started.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to upload document');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to upload document';
+      setError(message);
     } finally {
       setUploading(false);
       event.target.value = '';
@@ -267,8 +272,9 @@ export function KnowledgeBase() {
       await api.knowledgeService.deleteDocument(selectedKbId, documentId);
       await refreshDocuments(selectedKbId);
       setSuccessMessage('Document deleted.');
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete document');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to delete document';
+      setError(message);
     }
   };
 

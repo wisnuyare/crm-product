@@ -23,32 +23,43 @@ func NewLLMService(cfg *config.Config) *LLMService {
 	}
 }
 
-// GenerateRequest represents LLM generation request
+// GenerateRequest represents multi-agent chat request
 type GenerateRequest struct {
 	ConversationID   string   `json:"conversation_id"`
 	UserMessage      string   `json:"user_message"`
+	OutletID         string   `json:"outlet_id,omitempty"`
+	CustomerPhone    string   `json:"customer_phone,omitempty"`
 	KnowledgeBaseIDs []string `json:"knowledge_base_ids,omitempty"`
 }
 
-// GenerateResponse represents LLM generation response
+// GenerateResponse represents multi-agent chat response
 type GenerateResponse struct {
-	Response        string                 `json:"response"`
-	ConversationID  string                 `json:"conversation_id"`
-	TokensUsed      map[string]int         `json:"tokens_used"`
-	Cost            map[string]float64     `json:"cost"`
-	RAGContextUsed  bool                   `json:"rag_context_used"`
-	RAGSources      []string               `json:"rag_sources"`
-	Model           string                 `json:"model"`
-	FunctionsExecuted []map[string]interface{} `json:"functions_executed"`
+	Response           string                   `json:"response"`
+	ConversationID     string                   `json:"conversation_id"`
+	Intent             string                   `json:"intent"`
+	AgentUsed          string                   `json:"agent_used"`
+	Confidence         float64                  `json:"confidence"`
+	TransactionCreated bool                     `json:"transaction_created"`
+	TransactionID      string                   `json:"transaction_id,omitempty"`
+	FunctionCalls      []map[string]interface{} `json:"function_calls,omitempty"`
+	Metadata           map[string]interface{}   `json:"metadata,omitempty"`
+	// Legacy fields (for backwards compatibility)
+	TokensUsed     map[string]int     `json:"tokens_used,omitempty"`
+	Cost           map[string]float64 `json:"cost,omitempty"`
+	RAGContextUsed bool               `json:"rag_context_used,omitempty"`
+	RAGSources     []string           `json:"rag_sources,omitempty"`
+	Model          string             `json:"model,omitempty"`
 }
 
-// GenerateResponse calls LLM Orchestration Service to generate a response
-func (s *LLMService) GenerateResponse(tenantID, conversationID, userMessage string, knowledgeBaseIDs []string) (*GenerateResponse, error) {
-	url := fmt.Sprintf("%s/api/v1/llm/generate", s.config.LLMOrchestrationURL)
+// GenerateResponse calls LLM Orchestration Service multi-agent chat endpoint
+func (s *LLMService) GenerateResponse(tenantID, conversationID, userMessage, outletID, customerPhone string, knowledgeBaseIDs []string) (*GenerateResponse, error) {
+	url := fmt.Sprintf("%s/api/v1/llm/chat", s.config.LLMOrchestrationURL)
 
 	reqBody := GenerateRequest{
 		ConversationID:   conversationID,
 		UserMessage:      userMessage,
+		OutletID:         outletID,
+		CustomerPhone:    customerPhone,
 		KnowledgeBaseIDs: knowledgeBaseIDs,
 	}
 
@@ -86,8 +97,8 @@ func (s *LLMService) GenerateResponse(tenantID, conversationID, userMessage stri
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	log.Printf("✅ LLM generated response: %d chars, RAG used: %v, cost: $%.6f",
-		len(llmResp.Response), llmResp.RAGContextUsed, llmResp.Cost["total"])
+	log.Printf("✅ Multi-agent response: %d chars, intent=%s, agent=%s, confidence=%.2f, transaction=%v",
+		len(llmResp.Response), llmResp.Intent, llmResp.AgentUsed, llmResp.Confidence, llmResp.TransactionCreated)
 
 	return &llmResp, nil
 }

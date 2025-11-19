@@ -4,9 +4,10 @@ import type { KnowledgeBase, Document } from '../types';
 export const knowledgeService = {
   // Get knowledge bases
   getKnowledgeBases: async (tenantId: string): Promise<KnowledgeBase[]> => {
-    const response = await api.knowledge.get('/api/v1/knowledge-bases', {
-      params: { tenant_id: tenantId }
-    });
+    const queryParams = new URLSearchParams();
+    queryParams.append('tenant_id', tenantId);
+    const queryString = queryParams.toString();
+    const response = await api.knowledge.get(`/api/v1/knowledge-bases?${queryString}`);
     return response.data;
   },
 
@@ -29,17 +30,15 @@ export const knowledgeService = {
   },
 
   // Upload document
-  uploadDocument: async (kbId: string, file: File): Promise<Document> => {
+  uploadDocument: async (knowledgeBaseId: string, file: File): Promise<Document> => {
     const formData = new FormData();
     formData.append('file', file);
 
     const response = await api.knowledge.post(
-      `/api/v1/knowledge-bases/${kbId}/documents`,
+      `/api/v1/knowledge-bases/${knowledgeBaseId}/documents`,
       formData,
       {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        // 'Content-Type': 'multipart/form-data', // fetch will set this automatically for FormData
       }
     );
     return response.data;

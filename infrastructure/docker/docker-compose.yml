@@ -204,12 +204,14 @@ services:
     ports:
       - "3005:3005"
     environment:
+      - USE_MULTI_AGENT=true
       - OPENAI_API_KEY=${OPENAI_API_KEY:-your-openai-key-here}
       - OPENAI_MODEL=gpt-4o-mini
       - KNOWLEDGE_SERVICE_URL=http://knowledge-service:3003
       - CONVERSATION_SERVICE_URL=http://conversation-service:3004
       - TENANT_SERVICE_URL=http://tenant-service:3001
       - BOOKING_SERVICE_URL=http://booking-service:3008
+      - ORDER_SERVICE_URL=http://order-service:3009
       - PORT=3005
       - ENVIRONMENT=development
       - CORS_ORIGIN=http://localhost:5173

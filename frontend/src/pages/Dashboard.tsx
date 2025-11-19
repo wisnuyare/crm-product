@@ -3,7 +3,7 @@ import { Card, CardHeader } from '../components/ui/Card';
 import { analyticsService } from '../services/analytics.service';
 import { billingService } from '../services/billing.service';
 import { MessageSquare, TrendingUp, Users, DollarSign } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 export function Dashboard() {
   const { tenantId } = useAuth();

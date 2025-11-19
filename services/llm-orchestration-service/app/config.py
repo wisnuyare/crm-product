@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     port: int = 3005
     environment: str = "development"
 
+    # Feature Flags
+    use_multi_agent: bool = False  # Enable multi-agent system (Orchestrator + Information + Transaction)
+
     # OpenAI
     openai_api_key: str
     openai_model: str = "gpt-4o-mini"

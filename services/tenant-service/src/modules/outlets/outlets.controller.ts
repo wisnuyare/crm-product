@@ -14,7 +14,7 @@ import { OutletsService } from './outlets.service';
 import { CreateOutletDto } from './dto/create-outlet.dto';
 import { UpdateOutletDto } from './dto/update-outlet.dto';
 import { Outlet } from '../../types/tenant.entity';
-import { Roles, TenantId } from '../../firebase/decorators';
+import { Roles, TenantId, Public } from '../../firebase/decorators';
 import { ConfigService } from '@nestjs/config';
 import { Headers } from '@nestjs/common';
 
@@ -55,6 +55,21 @@ export class OutletsController {
   @ApiResponse({ status: 200, description: 'List of tenant outlets', type: [Outlet] })
   async findByTenant(@Param('tenantId') tenantId: string): Promise<any[]> {
     return await this.outletsService.findByTenant(tenantId);
+  }
+
+  @Public()
+  @Get('by-phone/:phoneNumberId')
+  @ApiOperation({ summary: 'Get outlet by WhatsApp phone number ID (internal API)' })
+  @ApiResponse({ status: 200, description: 'Outlet found', type: Outlet })
+  @ApiResponse({ status: 404, description: 'Outlet not found' })
+  async findByPhoneNumberId(
+    @Param('phoneNumberId') phoneNumberId: string,
+    @Headers('x-internal-api-key') internalKey?: string,
+  ): Promise<any> {
+    if (!this.isInternalRequest(internalKey)) {
+      throw new Error('Unauthorized - Invalid API key');
+    }
+    return await this.outletsService.findByPhoneNumberId(phoneNumberId);
   }
 
   @Get(':id')

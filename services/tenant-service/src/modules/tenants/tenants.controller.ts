@@ -17,6 +17,7 @@ import { Tenant } from '../../types/tenant.entity';
 import { Roles, Public, TenantId } from '../../firebase/decorators';
 
 import { UpdateLlmConfigDto } from './dto/update-llm-config.dto';
+import { UpdateCustomizationDto } from './dto/update-customization.dto';
 
 @ApiTags('tenants')
 @Controller('tenants')
@@ -96,6 +97,19 @@ export class TenantsController {
     @TenantId() tenantId: string,
   ): Promise<Tenant> {
     return await this.tenantsService.updateLlmInstructions(id, body.instructions, tenantId);
+  }
+
+  @Put(':id/customization')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Update tenant customization messages' })
+  @ApiResponse({ status: 200, description: 'Tenant customization updated successfully', type: Tenant })
+  @ApiResponse({ status: 404, description: 'Tenant not found' })
+  async updateCustomization(
+    @Param('id') id: string,
+    @Body() customizationDto: UpdateCustomizationDto,
+    @TenantId() tenantId: string,
+  ): Promise<Tenant> {
+    return await this.tenantsService.updateCustomization(id, customizationDto, tenantId);
   }
 
   @Delete(':id')

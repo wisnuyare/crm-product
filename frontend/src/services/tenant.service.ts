@@ -32,6 +32,12 @@ export const tenantService = {
     return response.data;
   },
 
+  // Update customization
+  updateCustomization: async (tenantId: string, data: { greeting_message: string; error_message: string }) => {
+    const response = await api.tenant.put(`/api/v1/tenants/${tenantId}/customization`, data);
+    return response.data;
+  },
+
   // Health check
   healthCheck: async () => {
     const response = await api.tenant.get('/health');

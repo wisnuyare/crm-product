@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 type OutletRecord = {
   id: string;
@@ -30,6 +30,17 @@ type QuotaStatus = {
   };
 };
 
+type OutletPayload = {
+  tenantId: string;
+  name: string;
+  wabaPhoneNumber: string;
+  wabaPhoneNumberId: string;
+  wabaBusinessAccountId: string;
+  status: 'active' | 'inactive';
+  wabaAccessToken?: string;
+};
+
+
 const Settings = () => {
   const { tenantId } = useAuth();
   const [outletName, setOutletName] = useState('');
@@ -38,6 +49,8 @@ const Settings = () => {
   const [wabaBusinessAccountId, setWabaBusinessAccountId] = useState('');
   const [wabaAccessToken, setWabaAccessToken] = useState('');
   const [llmInstructions, setLlmInstructions] = useState('');
+  const [greetingMessage, setGreetingMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [tenantMeta, setTenantMeta] = useState<TenantMeta>({ name: '', slug: '' });
@@ -55,32 +68,34 @@ const Settings = () => {
     setHasExistingToken(Boolean(outlet?.has_waba_access_token));
   };
 
-  const extractInstructions = (llmTone: any): string => {
+  const extractInstructions = (llmTone: unknown): string => {
     if (!llmTone) {
       return '';
     }
 
     if (typeof llmTone === 'string') {
       try {
-        const parsed = JSON.parse(llmTone);
+        const parsed = JSON.parse(llmTone) as { instructions?: string; tone?: string };
         return parsed.instructions || parsed.tone || '';
       } catch {
         return llmTone;
       }
     }
 
-    if (llmTone.instructions) {
-      return llmTone.instructions;
-    }
-
-    if (llmTone.tone) {
-      return llmTone.tone;
+    if (typeof llmTone === 'object' && llmTone !== null) {
+      const toneObj = llmTone as { instructions?: string; tone?: string };
+      if (toneObj.instructions) {
+        return toneObj.instructions;
+      }
+      if (toneObj.tone) {
+        return toneObj.tone;
+      }
     }
 
     return '';
   };
 
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     if (!tenantId) return;
 
     setIsLoading(true);
@@ -122,19 +137,22 @@ const Settings = () => {
       }
 
       setLlmInstructions(extractInstructions(tenantResponse.llm_tone));
-    } catch (error: any) {
+      setGreetingMessage(tenantResponse.greeting_message || 'Hello! How can I help you today?');
+      setErrorMessage(tenantResponse.error_message || 'I am sorry, but I cannot answer that question. Please ask another question.');
+    } catch (error: unknown) {
       console.error('Failed to load tenant settings:', error);
-      setStatus(`Error: ${error.message || 'Failed to load settings'}`);
+      const message = error instanceof Error ? error.message : 'Failed to load settings';
+      setStatus(`Error: ${message}`);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [tenantId]);
 
   useEffect(() => {
     if (tenantId) {
       loadSettings();
     }
-  }, [tenantId]);
+  }, [tenantId, loadSettings]);
 
   const handleSave = async () => {
     if (!tenantId) {
@@ -145,8 +163,14 @@ const Settings = () => {
     setStatus('Saving...');
     try {
 
-      // 1. Save LLM instructions
-      await api.tenant.updateLlmInstructions(tenantId, llmInstructions);
+      // 1. Save LLM instructions and customizations
+      await Promise.all([
+        api.tenant.updateLlmInstructions(tenantId, llmInstructions),
+        api.tenant.updateCustomization(tenantId, {
+          greeting_message: greetingMessage,
+          error_message: errorMessage,
+        }),
+      ]);
 
       const isCreatingNewOutlet = !selectedOutletId;
       const trimmedToken = wabaAccessToken.trim();
@@ -156,7 +180,7 @@ const Settings = () => {
         return;
       }
 
-      const outletPayload: Record<string, any> = {
+      const outletPayload: OutletPayload = {
         tenantId,
         name: outletName || 'My WhatsApp Outlet',
         wabaPhoneNumber,
@@ -361,6 +385,47 @@ const Settings = () => {
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
             placeholder="Enter custom instructions for the LLM..."
           />
+        </div>
+
+        <div className="rounded-lg border bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold mb-2">Customization</h2>
+          <p className="text-sm text-gray-500 mb-3">
+            Customize the messages your customers see.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="greetingMessage" className="block text-sm font-medium text-gray-700">
+                Greeting Message
+              </label>
+              <textarea
+                rows={3}
+                id="greetingMessage"
+                value={greetingMessage}
+                onChange={(e) => setGreetingMessage(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="e.g. Hello! Welcome to our store. How can I help you today?"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                The first message sent to a customer at the start of a new conversation.
+              </p>
+            </div>
+            <div>
+              <label htmlFor="errorMessage" className="block text-sm font-medium text-gray-700">
+                Default Error Message
+              </label>
+              <textarea
+                rows={3}
+                id="errorMessage"
+                value={errorMessage}
+                onChange={(e) => setErrorMessage(e.target.value)}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="e.g. I'm sorry, I can't seem to find the answer to that. Would you like to speak to a human agent?"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                The message sent when the LLM cannot answer a question or an error occurs.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="rounded-lg border bg-white p-6 shadow-sm">

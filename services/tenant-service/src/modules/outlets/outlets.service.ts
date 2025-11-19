@@ -110,6 +110,20 @@ export class OutletsService {
     return this.buildOutletResponse(outlet, includeSecret);
   }
 
+  async findByPhoneNumberId(phoneNumberId: string): Promise<OutletResponse> {
+    const outlet = await this.db.queryOne<Outlet>(
+      'SELECT * FROM outlets WHERE waba_phone_number_id = $1',
+      [phoneNumberId],
+    );
+
+    if (!outlet) {
+      throw new NotFoundException(`Outlet with phone number ID '${phoneNumberId}' not found`);
+    }
+
+    // Return with decrypted WABA access token for internal use
+    return this.buildOutletResponse(outlet, true);
+  }
+
   async update(id: string, updateOutletDto: UpdateOutletDto, tenantId: string): Promise<OutletResponse> {
     // Check if outlet exists and belongs to tenant
     const existing = await this.db.queryOne<Outlet>(

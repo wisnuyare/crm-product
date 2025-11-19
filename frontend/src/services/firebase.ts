@@ -5,7 +5,6 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
-  createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   signInWithCustomToken,
@@ -40,7 +39,7 @@ export const signInWithGoogle = () => {
   return signInWithPopup(auth, googleProvider);
 };
 
-export const signUpWithEmail = async (email: string, password: string) => {
+export const signUpWithEmail = async () => {
   // This will be handled by backend signup endpoint
   // which creates Firebase user + sets custom claims
   throw new Error("Use backend signup endpoint at /api/v1/auth/signup");

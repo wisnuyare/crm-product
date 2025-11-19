@@ -18,15 +18,15 @@ export interface ApiOptions extends RequestInit {
  * @param options - Fetch options (method, body, etc.)
  * @returns Parsed JSON response
  */
-export const apiCall = async <T = any>(
+export const apiCall = async <T = unknown>(
   endpoint: string,
   options: ApiOptions = {}
 ): Promise<T> => {
   const { skipAuth = false, ...fetchOptions } = options;
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...fetchOptions.headers,
+    ...(fetchOptions.headers as Record<string, string>),
   };
 
   // Add JWT token for authenticated requests
@@ -60,7 +60,7 @@ export const apiCall = async <T = any>(
       let errorMessage = `API error: ${response.status} ${response.statusText}`;
 
       try {
-        const errorData = await response.json();
+        const errorData: { message?: string; error?: string } = await response.json();
         errorMessage = errorData.message || errorData.error || errorMessage;
       } catch {
         // Response might not be JSON
@@ -98,16 +98,16 @@ export const apiCall = async <T = any>(
 /**
  * Convenience method for GET requests
  */
-export const apiGet = <T = any>(endpoint: string, options?: ApiOptions): Promise<T> => {
+export const apiGet = <T = unknown>(endpoint: string, options?: ApiOptions): Promise<T> => {
   return apiCall<T>(endpoint, { ...options, method: 'GET' });
 };
 
 /**
  * Convenience method for POST requests
  */
-export const apiPost = <T = any>(
+export const apiPost = <T = unknown>(
   endpoint: string,
-  data?: any,
+  data?: unknown,
   options?: ApiOptions
 ): Promise<T> => {
   return apiCall<T>(endpoint, {
@@ -120,9 +120,9 @@ export const apiPost = <T = any>(
 /**
  * Convenience method for PUT requests
  */
-export const apiPut = <T = any>(
+export const apiPut = <T = unknown>(
   endpoint: string,
-  data?: any,
+  data?: unknown,
   options?: ApiOptions
 ): Promise<T> => {
   return apiCall<T>(endpoint, {
@@ -135,9 +135,9 @@ export const apiPut = <T = any>(
 /**
  * Convenience method for PATCH requests
  */
-export const apiPatch = <T = any>(
+export const apiPatch = <T = unknown>(
   endpoint: string,
-  data?: any,
+  data?: unknown,
   options?: ApiOptions
 ): Promise<T> => {
   return apiCall<T>(endpoint, {
@@ -150,6 +150,6 @@ export const apiPatch = <T = any>(
 /**
  * Convenience method for DELETE requests
  */
-export const apiDelete = <T = any>(endpoint: string, options?: ApiOptions): Promise<T> => {
+export const apiDelete = <T = unknown>(endpoint: string, options?: ApiOptions): Promise<T> => {
   return apiCall<T>(endpoint, { ...options, method: 'DELETE' });
 };

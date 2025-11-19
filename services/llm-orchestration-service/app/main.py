@@ -10,7 +10,7 @@ import uvicorn
 from prometheus_fastapi_instrumentator import PrometheusFastApiInstrumentator
 
 from app.config import settings
-from app.routers import generate
+from app.routers import generate, chat
 
 # Create FastAPI app
 app = FastAPI(
@@ -35,15 +35,23 @@ app.add_middleware(
 @app.get("/")
 def root():
     """Root endpoint"""
+    endpoints = {
+        "health": "/health",
+        "generate": "/api/v1/llm/generate (legacy)",
+        "stream": "/api/v1/llm/stream (legacy)",
+    }
+
+    # Add multi-agent endpoints if enabled
+    if settings.use_multi_agent:
+        endpoints["chat"] = "/api/v1/llm/chat (multi-agent) ✨"
+        endpoints["chat_health"] = "/api/v1/llm/chat/health"
+
     return {
         "service": settings.app_name,
         "version": settings.app_version,
         "status": "running",
-        "endpoints": {
-            "health": "/health",
-            "generate": "/api/v1/llm/generate",
-            "stream": "/api/v1/llm/stream",
-        },
+        "multi_agent_enabled": settings.use_multi_agent,
+        "endpoints": endpoints,
     }
 
 
@@ -84,6 +92,13 @@ async def health_check():
 
 # Include routers
 app.include_router(generate.router)
+
+# Include multi-agent chat router if enabled
+if settings.use_multi_agent:
+    app.include_router(chat.router)
+    print(f"✨ Multi-Agent System ENABLED - /api/v1/llm/chat available")
+else:
+    print(f"ℹ️  Multi-Agent System DISABLED - Using legacy /api/v1/llm/generate")
 
 
 if __name__ == "__main__":

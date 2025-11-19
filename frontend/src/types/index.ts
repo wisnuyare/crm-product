@@ -20,6 +20,8 @@ export interface Tenant {
   createdAt: string;
   updatedAt: string;
   llmInstructions?: string; // Custom instructions for LLM behavior
+  greeting_message?: string;
+  error_message?: string;
 }
 
 export interface Outlet {

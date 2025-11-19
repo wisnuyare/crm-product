@@ -17,6 +17,8 @@ CREATE TABLE tenants (
   updated_at TIMESTAMP DEFAULT NOW(),
   status VARCHAR(50) DEFAULT 'active',
   llm_tone JSONB DEFAULT '{"tone": "professional"}',
+  greeting_message TEXT DEFAULT 'Hello! How can I help you today?',
+  error_message TEXT DEFAULT 'I am sorry, but I cannot answer that question. Please ask another question.',
   contact_email VARCHAR(255),
   firebase_tenant_id VARCHAR(255),
   CONSTRAINT valid_status CHECK (status IN ('active', 'suspended', 'inactive'))
@@ -34,6 +36,23 @@ CREATE TABLE outlets (
   created_at TIMESTAMP DEFAULT NOW(),
   status VARCHAR(50) DEFAULT 'active',
   CONSTRAINT valid_outlet_status CHECK (status IN ('active', 'inactive'))
+);
+
+-- Products table (1:many with tenant)
+CREATE TABLE products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  price DECIMAL(10, 2) NOT NULL CHECK (price >= 0),
+  stock_quantity INTEGER NOT NULL DEFAULT 0 CHECK (stock_quantity >= 0),
+  low_stock_threshold INTEGER NOT NULL DEFAULT 10 CHECK (low_stock_threshold >= 0),
+  category VARCHAR(100),
+  sku VARCHAR(100),
+  status VARCHAR(50) DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  CONSTRAINT valid_product_status CHECK (status IN ('active', 'inactive'))
 );
 
 -- Users table
@@ -169,6 +188,9 @@ CREATE TABLE messages (
 
 -- Tenant Service indexes
 CREATE INDEX idx_outlets_tenant ON outlets(tenant_id);
+CREATE INDEX idx_products_tenant ON products(tenant_id);
+CREATE INDEX idx_products_tenant_status ON products(tenant_id, status);
+CREATE INDEX idx_products_name ON products(name);
 CREATE INDEX idx_users_tenant ON users(tenant_id);
 CREATE INDEX idx_users_firebase ON users(firebase_uid);
 
@@ -198,6 +220,7 @@ CREATE INDEX idx_messages_timestamp ON messages(timestamp);
 -- Enable RLS on all tenant-scoped tables
 ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE outlets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usage_records ENABLE ROW LEVEL SECURITY;
@@ -212,6 +235,9 @@ CREATE POLICY tenant_isolation ON tenants
   USING (id = current_setting('app.current_tenant_id', true)::uuid);
 
 CREATE POLICY tenant_isolation ON outlets
+  USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+
+CREATE POLICY tenant_isolation ON products
   USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
 
 CREATE POLICY tenant_isolation ON users
@@ -243,6 +269,7 @@ CREATE POLICY tenant_isolation ON messages
 -- Force RLS even for table owners (CRITICAL for multi-tenant isolation)
 ALTER TABLE tenants FORCE ROW LEVEL SECURITY;
 ALTER TABLE outlets FORCE ROW LEVEL SECURITY;
+ALTER TABLE products FORCE ROW LEVEL SECURITY;
 ALTER TABLE users FORCE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions FORCE ROW LEVEL SECURITY;
 ALTER TABLE usage_records FORCE ROW LEVEL SECURITY;

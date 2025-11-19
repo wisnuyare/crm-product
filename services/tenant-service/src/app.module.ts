@@ -9,6 +9,8 @@ import { TenantsModule } from './modules/tenants/tenants.module';
 import { OutletsModule } from './modules/outlets/outlets.module';
 import { UsersModule } from './modules/users/users.module';
 import { QuotaModule } from './modules/quota/quota.module';
+import { CustomersModule } from './modules/customers/customers.module';
+import { ProductsModule } from './modules/products/products.module';
 import { HealthController } from './health.controller';
 import { AuthController } from './modules/auth/auth.controller';
 import { TenantContextMiddleware } from './middleware/tenant-context.middleware';
@@ -37,6 +39,8 @@ import { CryptoModule } from './crypto/crypto.module';
     OutletsModule,
     UsersModule,
     QuotaModule,
+    CustomersModule,
+    ProductsModule,
 
     // Monitoring
     MetricsModule,

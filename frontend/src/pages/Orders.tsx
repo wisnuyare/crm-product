@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, type ElementType } from 'react';
 import { Card } from '../components/ui/Card';
 import { ShoppingCart, Package, Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
-import { API_BASE_URLS, api } from '../services/api';
+import { api } from '../services/api';
 
 interface OrderItem {
   id: string;
@@ -60,12 +60,7 @@ export function Orders() {
   const [activeTab, setActiveTab] = useState<OrderStatus>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // Fetch orders
-  useEffect(() => {
-    fetchOrders();
-  }, [activeTab]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -83,7 +78,12 @@ export function Orders() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  // Fetch orders
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   // Format price in Rupiah
   const formatPrice = (price: number) => {
@@ -138,7 +138,7 @@ export function Orders() {
       .reduce((sum, o) => sum + o.total, 0)
   };
 
-  const tabs: { id: OrderStatus; label: string; icon: any }[] = [
+  const tabs: { id: OrderStatus; label: string; icon: ElementType }[] = [
     { id: 'all', label: 'All Orders', icon: ShoppingCart },
     { id: 'pending', label: 'Pending', icon: Clock },
     { id: 'confirmed', label: 'Confirmed', icon: CheckCircle },

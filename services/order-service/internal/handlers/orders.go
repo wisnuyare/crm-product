@@ -8,6 +8,7 @@ import (
 	"order-service/internal/database"
 	"order-service/internal/models"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -62,6 +63,9 @@ func CreateOrder(c *gin.Context) {
 	productsToProcess := []ProductInfo{}
 
 	for _, item := range req.Items {
+		// Trim whitespace from product ID
+		productID := strings.TrimSpace(item.ProductID)
+
 		// Get product details and lock row
 		var product models.Product
 		err := tx.QueryRow(`
@@ -69,7 +73,7 @@ func CreateOrder(c *gin.Context) {
 			FROM products
 			WHERE id = $1 AND tenant_id = $2 AND status = 'active'
 			FOR UPDATE
-		`, item.ProductID, tenantID).Scan(&product.ID, &product.Name, &product.Price, &product.StockQuantity)
+		`, productID, tenantID).Scan(&product.ID, &product.Name, &product.Price, &product.StockQuantity)
 
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, models.ErrorResponse{Error: fmt.Sprintf("Product %s not found", item.ProductID)})

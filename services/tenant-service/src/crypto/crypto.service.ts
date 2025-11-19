@@ -54,10 +54,10 @@ export class CryptoService {
       const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
       return decrypted.toString('utf8');
     } catch (error) {
-      this.logger.error('Decryption failed', error.stack);
-      // It's safer to return null or an empty string if decryption fails
-      // to avoid exposing partially decrypted or incorrect data.
-      return null;
+      this.logger.warn('Decryption failed - assuming plaintext token for backward compatibility');
+      // If decryption fails, assume it's a plaintext token (for backward compatibility)
+      // This allows tokens stored before encryption was implemented to still work
+      return encryptedText;
     }
   }
 }

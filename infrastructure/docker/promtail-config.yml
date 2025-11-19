@@ -1,0 +1,160 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Docker container logs
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["logging=promtail"]
+    relabel_configs:
+      # Container name as job
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+
+      # Service name from Docker Compose
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+
+      # Project name
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: 'project'
+
+    # Pipeline for parsing JSON logs
+    pipeline_stages:
+      # Try to parse as JSON
+      - json:
+          expressions:
+            level: level
+            timestamp: timestamp
+            message: message
+            error_type: error_type
+            request_id: request_id
+            tenant_id: tenant_id
+            conversation_id: conversation_id
+
+      # Extract log level from standard formats
+      - regex:
+          expression: '(?P<level>DEBUG|INFO|WARNING|ERROR|CRITICAL|FATAL)'
+
+      # Set level label
+      - labels:
+          level:
+          service:
+          container:
+
+      # Drop debug logs (optional - uncomment to save storage)
+      # - drop:
+      #     source: level
+      #     expression: "DEBUG"
+
+  # Specific service configs for better parsing
+  - job_name: llm-orchestration-service
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ["crm-llm-orchestration-service"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - replacement: 'llm-orchestration-service'
+        target_label: 'service'
+
+    pipeline_stages:
+      # Parse JSON logs from FastAPI/Uvicorn
+      - json:
+          expressions:
+            level: level
+            message: message
+            timestamp: timestamp
+            intent: intent
+            agent: agent
+            confidence: confidence
+            transaction_created: transaction_created
+            error_type: error_type
+            tenant_id: tenant_id
+            conversation_id: conversation_id
+
+      # Parse Uvicorn access logs
+      - regex:
+          expression: '(?P<remote_addr>[\d\.]+) - "(?P<method>\w+) (?P<path>[^"]+) HTTP/\d\.\d" (?P<status>\d+)'
+
+      - labels:
+          level:
+          intent:
+          agent:
+          method:
+          status:
+
+  - job_name: message-sender-service
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ["crm-message-sender-service"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - replacement: 'message-sender-service'
+        target_label: 'service'
+
+    pipeline_stages:
+      # Parse Go service logs
+      - regex:
+          expression: '(?P<timestamp>\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}) \[(?P<level>\w+)\] (?P<message>.*)'
+
+      # Extract WhatsApp webhook events
+      - regex:
+          expression: '📩 === INCOMING MESSAGE ==='
+
+      - labels:
+          level:
+          service:
+
+  # Error logs only (for long-term storage)
+  - job_name: errors-only
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["logging=promtail"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+
+    pipeline_stages:
+      # Parse JSON
+      - json:
+          expressions:
+            level: level
+            error_type: error_type
+            message: message
+            stack_trace: stack_trace
+            tenant_id: tenant_id
+            request_id: request_id
+
+      # Keep only ERROR and CRITICAL logs
+      - match:
+          selector: '{level=~"ERROR|CRITICAL|FATAL"}'
+          stages:
+            - labels:
+                level:
+                error_type:
+                service:

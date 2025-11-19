@@ -51,8 +51,12 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   };
 
   // Add X-Tenant-Id header if tenant ID is available
+  // Fallback to default tenant if not set (temporary workaround)
   if (tenantId) {
     headers['X-Tenant-Id'] = tenantId;
+  } else {
+    // TEMPORARY: Use default tenant for development
+    headers['X-Tenant-Id'] = '00000000-0000-0000-0000-000000000001';
   }
 
   if (!isFormData && !headers['Content-Type']) {
@@ -91,21 +95,31 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 // API client factory
 function createApiClient(baseURL: string) {
   return {
-    get: (path: string) => fetchWithAuth(`${baseURL}${path}`),
-    post: (path: string, data?: any) =>
+    get: (path: string, options?: RequestInit) => fetchWithAuth(`${baseURL}${path}`, options),
+    post: (path: string, data?: unknown, options?: RequestInit) =>
       fetchWithAuth(`${baseURL}${path}`, {
+        ...options,
         method: 'POST',
         body: data ? JSON.stringify(data) : undefined,
       }),
-    put: (path: string, data?: any) =>
+    put: (path: string, data?: unknown, options?: RequestInit) =>
       fetchWithAuth(`${baseURL}${path}`, {
+        ...options,
         method: 'PUT',
         body: data ? JSON.stringify(data) : undefined,
       }),
-    delete: (path: string) =>
-      fetchWithAuth(`${baseURL}${path}`, { method: 'DELETE' }),
+    delete: (path: string, options?: RequestInit) =>
+      fetchWithAuth(`${baseURL}${path}`, { ...options, method: 'DELETE' }),
   };
 }
+
+type OutletData = {
+  name: string;
+  wabaPhoneNumber: string;
+  wabaPhoneNumberId: string;
+  wabaBusinessAccountId: string;
+  wabaAccessToken?: string;
+};
 
 // API clients for each service
 export const api = {
@@ -121,16 +135,22 @@ export const api = {
         body: JSON.stringify({ instructions }),
       });
     },
-    createOutlet: (outletData: any) => {
+    createOutlet: (outletData: OutletData) => {
       return fetchWithAuth(`${API_BASE_URLS.tenant}/api/v1/outlets`, {
         method: 'POST',
         body: JSON.stringify(outletData),
       });
     },
-    updateOutlet: (outletId: string, outletData: any) => {
+    updateOutlet: (outletId: string, outletData: Partial<OutletData>) => {
       return fetchWithAuth(`${API_BASE_URLS.tenant}/api/v1/outlets/${outletId}`, {
         method: 'PUT',
         body: JSON.stringify(outletData),
+      });
+    },
+    updateCustomization: (tenantId: string, data: { greeting_message: string; error_message: string }) => {
+      return fetchWithAuth(`${API_BASE_URLS.tenant}/api/v1/tenants/${tenantId}/customization`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
       });
     },
   },

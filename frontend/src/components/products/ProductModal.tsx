@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { api } from '../../services/api';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -57,8 +58,12 @@ export default function ProductModal({ isOpen, onClose, onSuccess, editProduct }
     mutationFn: (newProduct: Omit<ProductData, 'id'>) => api.order.post('/api/v1/products', newProduct),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success('Product created successfully');
       onSuccess();
       onClose();
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to create product: ${error.message}`);
     },
   });
 
@@ -66,8 +71,12 @@ export default function ProductModal({ isOpen, onClose, onSuccess, editProduct }
     mutationFn: (updatedProduct: ProductData) => api.order.put(`/api/v1/products/${updatedProduct.id}`, updatedProduct),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success('Product updated successfully');
       onSuccess();
       onClose();
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update product: ${error.message}`);
     },
   });
 
@@ -126,9 +135,13 @@ export default function ProductModal({ isOpen, onClose, onSuccess, editProduct }
           <p className="text-sm text-red-500">{mutation.error.message}</p>
         )}
         <div className="flex justify-end gap-2">
-          <Button type="button" className="bg-white text-gray-900 border border-gray-300 hover:bg-gray-50" onClick={onClose}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-900 border border-gray-300 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2"
+          >
             Cancel
-          </Button>
+          </button>
           <Button type="submit" disabled={mutation.isPending}>
             {mutation.isPending ? (isEditMode ? 'Saving...' : 'Adding...') : (isEditMode ? 'Save Changes' : 'Add Product')}
           </Button>

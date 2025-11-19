@@ -215,18 +215,21 @@ func (h *WebhookHandler) handleMessage(phoneNumberID, customerPhone, messageCont
 	}
 	log.Printf("✅ Found %d knowledge bases", len(kbIDs))
 
-	// Step 5: Generate LLM response
-	log.Printf("📍 Step 5: Generating LLM response...")
+	// Step 5: Generate LLM response (using multi-agent system)
+	log.Printf("📍 Step 5: Generating multi-agent LLM response...")
 	llmResponse, err := h.llmService.GenerateResponse(
 		outlet.TenantID,
 		conversation.ID,
 		messageContent,
+		outlet.ID,
+		customerPhone,
 		kbIDs,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to generate LLM response: %w", err)
 	}
-	log.Printf("✅ LLM response generated (%d chars)", len(llmResponse.Response))
+	log.Printf("✅ Multi-agent response generated (%d chars, intent=%s, agent=%s)",
+		len(llmResponse.Response), llmResponse.Intent, llmResponse.AgentUsed)
 
 	// Step 6: Send response back via WhatsApp
 	log.Printf("📍 Step 6: Sending response to customer...")
@@ -235,7 +238,7 @@ func (h *WebhookHandler) handleMessage(phoneNumberID, customerPhone, messageCont
 		AccessToken:   outlet.WABAAccessToken,
 	}
 
-	_, err = h.whatsappService.SendMessageWithRetry(
+	sentMessage, err := h.whatsappService.SendMessageWithRetry(
 		wabaConfig,
 		customerPhone,
 		llmResponse.Response,
@@ -245,6 +248,26 @@ func (h *WebhookHandler) handleMessage(phoneNumberID, customerPhone, messageCont
 		return fmt.Errorf("failed to send WhatsApp message: %w", err)
 	}
 	log.Printf("✅ Response sent to customer")
+
+	// Step 7: Store LLM response message in conversation
+	log.Printf("📍 Step 7: Storing LLM response in conversation...")
+	whatsappMsgID := ""
+	if sentMessage != nil && len(sentMessage.Messages) > 0 {
+		whatsappMsgID = sentMessage.Messages[0].ID
+	}
+
+	if err := h.conversationService.StoreMessage(
+		outlet.TenantID,
+		conversation.ID,
+		"llm",
+		llmResponse.Response,
+		whatsappMsgID,
+	); err != nil {
+		// Don't fail the whole flow if storing fails, just log the error
+		log.Printf("⚠️  Warning: Failed to store LLM response: %v", err)
+	} else {
+		log.Printf("✅ LLM response stored in conversation")
+	}
 
 	log.Printf("🎉 Message processing complete!\n")
 	return nil

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card } from '../components/ui/Card';
 import {
   BarChart3,
@@ -10,8 +10,7 @@ import {
   TrendingUp,
   PhoneForwarded,
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { api } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 interface PlatformMetrics {
   total_conversations: number;
@@ -39,11 +38,7 @@ export function Analytics() {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('7d');
 
-  useEffect(() => {
-    loadMetrics();
-  }, [timeRange, tenantId]);
-
-  const loadMetrics = async () => {
+  const loadMetrics = useCallback(async () => {
     if (!tenantId) return;
 
     setLoading(true);
@@ -65,13 +60,18 @@ export function Analytics() {
       };
 
       setMetrics(mockMetrics);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load metrics:', err);
-      setError(err.message || 'Failed to load analytics');
+      const message = err instanceof Error ? err.message : 'Failed to load analytics';
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [tenantId]);
+
+  useEffect(() => {
+    loadMetrics();
+  }, [timeRange, loadMetrics]);
 
   const formatNumber = (num: number) => new Intl.NumberFormat('en-US').format(num);
   const formatCurrency = (num: number) =>

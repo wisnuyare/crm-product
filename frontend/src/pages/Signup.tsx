@@ -48,25 +48,19 @@ const SignupPage = () => {
       // Sign in with custom token (includes tenant_id and role)
       await signInWithToken(data.customToken);
 
-      // Store token and email
-      const user = await fetch('http://localhost:3001/api/v1/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${data.customToken}`
-        }
-      }).catch(() => null);
-
       localStorage.setItem('userEmail', email);
 
       // Navigate to dashboard
       navigate('/');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Signup error:', err);
-      if (err.message.includes('invitation')) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred';
+      if (message.includes('invitation')) {
         setError('No invitation found for this email. Please contact your administrator.');
-      } else if (err.message.includes('already registered')) {
+      } else if (message.includes('already registered')) {
         setError('Email already registered. Please sign in instead.');
       } else {
-        setError(err.message || 'Failed to create account. Please try again.');
+        setError(message || 'Failed to create account. Please try again.');
       }
     } finally {
       setLoading(false);

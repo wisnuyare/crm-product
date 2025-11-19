@@ -9,6 +9,7 @@ from typing import AsyncGenerator
 from app.models import GenerateRequest, GenerateResponse
 from app.services.prompt_service import prompt_service
 from app.services.openai_service import openai_service
+from app.services.security_service import security_service
 
 router = APIRouter(prefix="/api/v1/llm", tags=["llm"])
 
@@ -57,6 +58,22 @@ async def generate_response(
     - model: Model used (gpt-4o-mini)
     """
     try:
+        # 🔒 SECURITY: Validate user message for jailbreak/injection attempts
+        is_safe, error_type = security_service.validate_user_message(request.user_message)
+        if not is_safe:
+            # Return safe error message instead of processing malicious input
+            safe_response = security_service.get_safe_error_response(error_type)
+            return GenerateResponse(
+                response=safe_response,
+                conversation_id=request.conversation_id,
+                tokens_used={"input": 0, "output": 0, "total": 0},
+                cost={"input": 0.0, "output": 0.0, "total": 0.0},
+                rag_context_used=False,
+                rag_sources=[],
+                model="security-filter",
+                functions_executed=[],
+            )
+
         # Parse tenant_id from header
         tenant_uuid = UUID(tenant_id) if isinstance(tenant_id, str) else tenant_id
 
@@ -84,6 +101,11 @@ async def generate_response(
             tenant_id=str(tenant_uuid),
             enable_booking=True,
         )
+
+        # If this is the first message in the conversation, prepend the greeting
+        if not prompt_context.conversation_history:
+            greeting = prompt_context.tenant_config.get("greeting_message", "Hello! How can I help you today?")
+            response.response = f"{greeting}\n\n{response.response}"
 
         return response
 

@@ -39,11 +39,19 @@ class ContextService:
 
                 # Extract instructions from llm_tone field
                 llm_config = data.get("llm_tone", {})
-                return {"instructions": llm_config.get("instructions", "Be helpful, professional, and concise.")}
+                return {
+                    "instructions": llm_config.get("instructions", "Be helpful, professional, and concise."),
+                    "greeting_message": data.get("greeting_message", "Hello! How can I help you today?"),
+                    "error_message": data.get("error_message", "I am sorry, but I cannot answer that question. Please ask another question."),
+                }
         except Exception as e:
             print(f"Error fetching tenant config: {e}")
             # Return default instructions if service unavailable
-            return {"instructions": "Be helpful, professional, and concise."}
+            return {
+                "instructions": "Be helpful, professional, and concise.",
+                "greeting_message": "Hello! How can I help you today?",
+                "error_message": "I am sorry, but I cannot answer that question. Please ask another question.",
+            }
 
     async def get_conversation_history(
         self, conversation_id: UUID, tenant_id: UUID, limit: int = 4

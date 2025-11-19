@@ -83,3 +83,58 @@ class PromptContext(BaseModel):
     conversation_history: List[Message]
     user_message: str
     tenant_config: Dict[str, Any]
+
+
+# Multi-Agent System Models
+
+class ChatRequest(BaseModel):
+    """Request model for multi-agent chat endpoint"""
+
+    conversation_id: UUID
+    user_message: str
+    outlet_id: Optional[str] = None  # Required for transactions
+    customer_phone: Optional[str] = None  # For transaction workflows
+    knowledge_base_ids: Optional[List[str]] = []
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "conversation_id": "123e4567-e89b-12d3-a456-426614174000",
+                "user_message": "ada apa?",
+                "knowledge_base_ids": ["kb-uuid-1"],
+                "outlet_id": "outlet-uuid",
+                "customer_phone": "+6281234567890"
+            }
+        }
+
+
+class ChatResponse(BaseModel):
+    """Response model for multi-agent chat endpoint"""
+
+    response: str
+    conversation_id: UUID
+    intent: str  # product_inquiry, place_order, general_question, REJECT, etc.
+    agent_used: str  # orchestrator, information, transaction
+    confidence: float  # 0.0-1.0
+    transaction_created: bool
+    transaction_id: Optional[str] = None
+    function_calls: List[Dict[str, Any]] = []
+    metadata: Dict[str, Any] = {}
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "response": "Kami punya Kimchi Sawi Rp 25,000 dan Kimchi Lobak Rp 20,000.",
+                "conversation_id": "123e4567-e89b-12d3-a456-426614174000",
+                "intent": "product_inquiry",
+                "agent_used": "information",
+                "confidence": 0.95,
+                "transaction_created": False,
+                "transaction_id": None,
+                "function_calls": [],
+                "metadata": {
+                    "rag_sources": ["products.md"],
+                    "rag_context_count": 1
+                }
+            }
+        }

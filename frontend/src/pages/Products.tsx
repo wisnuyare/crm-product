@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { api } from '../services/api';
 import { Card } from '../components/ui/Card';
 import { Package, AlertTriangle, Plus, Search, Edit, Trash2 } from 'lucide-react';
@@ -34,6 +35,17 @@ interface ProductsResponse {
   total: number;
 }
 
+type FormProduct = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  stock_quantity: number;
+  low_stock_threshold: number;
+  category: string;
+  sku: string;
+};
+
 const fetchProducts = async (categoryFilter: string): Promise<ProductsResponse> => {
   const params = new URLSearchParams({
     status: 'active',
@@ -54,7 +66,7 @@ export function Products() {
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(undefined);
+  const [editingProduct, setEditingProduct] = useState<FormProduct | undefined>(undefined);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery<ProductsResponse>({
@@ -67,10 +79,11 @@ export function Products() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setDeleteConfirmId(null);
+      toast.success('Product deleted successfully');
     },
     onError: (err: Error) => {
       console.error('Error deleting product:', err);
-      alert('Failed to delete product. Please try again.');
+      toast.error('Failed to delete product. Please try again.');
     }
   });
 
@@ -150,7 +163,7 @@ export function Products() {
         </div>
         <button
           onClick={handleCreateProduct}
-          className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
         >
           <Plus size={20} />
           Add Product

@@ -27,6 +27,12 @@ export class Tenant {
 
   @ApiProperty({ nullable: true })
   firebase_tenant_id: string | null;
+
+  @ApiProperty({ nullable: true })
+  greeting_message: string | null;
+
+  @ApiProperty({ nullable: true })
+  error_message: string | null;
 }
 
 export class Outlet {

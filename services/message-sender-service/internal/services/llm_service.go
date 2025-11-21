@@ -23,13 +23,19 @@ func NewLLMService(cfg *config.Config) *LLMService {
 	}
 }
 
-// GenerateRequest represents multi-agent chat request
+// Message represents a chat message
+type Message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// GenerateRequest represents V2 chat request
 type GenerateRequest struct {
-	ConversationID   string   `json:"conversation_id"`
-	UserMessage      string   `json:"user_message"`
-	OutletID         string   `json:"outlet_id,omitempty"`
-	CustomerPhone    string   `json:"customer_phone,omitempty"`
-	KnowledgeBaseIDs []string `json:"knowledge_base_ids,omitempty"`
+	Messages      []Message `json:"messages"`
+	TenantID      string    `json:"tenant_id"`
+	OutletID      string    `json:"outlet_id"`
+	CustomerPhone string    `json:"customer_phone"`
+	ConversationID string   `json:"conversation_id,omitempty"`
 }
 
 // GenerateResponse represents multi-agent chat response
@@ -51,16 +57,24 @@ type GenerateResponse struct {
 	Model          string             `json:"model,omitempty"`
 }
 
-// GenerateResponse calls LLM Orchestration Service multi-agent chat endpoint
+// GenerateResponse calls LLM Orchestration Service V2 chat endpoint (refactored architecture)
 func (s *LLMService) GenerateResponse(tenantID, conversationID, userMessage, outletID, customerPhone string, knowledgeBaseIDs []string) (*GenerateResponse, error) {
-	url := fmt.Sprintf("%s/api/v1/llm/chat", s.config.LLMOrchestrationURL)
+	url := fmt.Sprintf("%s/api/v1/llm/v2/chat", s.config.LLMOrchestrationURL)
+
+	// Build messages array with current user message
+	messages := []Message{
+		{
+			Role:    "user",
+			Content: userMessage,
+		},
+	}
 
 	reqBody := GenerateRequest{
-		ConversationID:   conversationID,
-		UserMessage:      userMessage,
-		OutletID:         outletID,
-		CustomerPhone:    customerPhone,
-		KnowledgeBaseIDs: knowledgeBaseIDs,
+		Messages:       messages,
+		TenantID:       tenantID,
+		OutletID:       outletID,
+		CustomerPhone:  customerPhone,
+		ConversationID: conversationID,
 	}
 
 	jsonData, err := json.Marshal(reqBody)

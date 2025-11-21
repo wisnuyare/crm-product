@@ -2,11 +2,13 @@
 Context Service - Fetches context from other services
 """
 import httpx
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from uuid import UUID
 
 from app.config import settings
 from app.models import Message, RAGContext
+import redis.asyncio as redis
+import json
 
 
 class ContextService:
@@ -15,7 +17,17 @@ class ContextService:
     def __init__(self):
         self.knowledge_service_url = settings.knowledge_service_url
         self.conversation_service_url = settings.conversation_service_url
+        self.knowledge_service_url = settings.knowledge_service_url
+        self.conversation_service_url = settings.conversation_service_url
         self.tenant_service_url = settings.tenant_service_url
+        self.booking_service_url = settings.booking_service_url
+
+        # Initialize Redis
+        self.redis = redis.Redis(
+            host=settings.redis_host,
+            port=settings.redis_port,
+            decode_responses=True
+        )
 
     async def get_tenant_config(self, tenant_id: UUID) -> Dict[str, Any]:
         """
@@ -137,6 +149,122 @@ class ContextService:
         except Exception as e:
             print(f"Error fetching RAG context: {e}")
             return []
+
+
+    async def get_workflow_state(self, conversation_id: str) -> Dict[str, Any]:
+        """Get workflow state from Redis"""
+        try:
+            data = await self.redis.get(f"workflow:{conversation_id}")
+            return json.loads(data) if data else {}
+        except Exception as e:
+            print(f"Error getting workflow state: {e}")
+            return {}
+
+    async def save_workflow_state(self, conversation_id: str, state: Dict[str, Any]):
+        """Save workflow state to Redis"""
+        try:
+            if not state:
+                await self.redis.delete(f"workflow:{conversation_id}")
+                return
+
+            await self.redis.set(
+                f"workflow:{conversation_id}",
+                json.dumps(state),
+                ex=3600  # Expire after 1 hour
+            )
+        except Exception as e:
+            print(f"Error saving workflow state: {e}")
+
+    async def get_products(self, tenant_id: UUID, outlet_id: UUID) -> List[Dict[str, Any]]:
+        """
+        Fetch products from tenant service
+
+        Args:
+            tenant_id: Tenant UUID
+            outlet_id: Outlet UUID (used for filtering)
+
+        Returns:
+            List of products with name, price, description, status
+        """
+        try:
+            import os
+            internal_api_key = os.getenv("INTERNAL_API_KEY", "dev-internal-key-12345")
+
+            async with httpx.AsyncClient() as client:
+                # Use correct endpoint: /api/v1/products with optional outlet_id filter
+                params = {}
+                if outlet_id:
+                    params["outlet_id"] = str(outlet_id)
+
+                response = await client.get(
+                    f"{self.tenant_service_url}/api/v1/products",
+                    headers={
+                        "X-Tenant-Id": str(tenant_id),
+                        "X-Internal-API-Key": internal_api_key
+                    },
+                    params=params,
+                    timeout=5.0,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                # Extract products list (API returns {products: [...], total: N})
+                products = data.get("products", [])
+
+                # Filter only active products
+                active_products = [
+                    p for p in products
+                    if p.get("status") == "active"
+                ]
+
+                print(f"✅ Retrieved {len(active_products)} active products from tenant service")
+                return active_products
+        except Exception as e:
+            print(f"❌ Error fetching products: {e}")
+            return []
+
+    async def check_booking_availability(
+        self,
+        tenant_id: UUID,
+        date: str,
+        resource_type: Optional[str] = None,
+        resource_id: Optional[UUID] = None
+    ) -> Dict[str, Any]:
+        """
+        Check booking availability for resources on a specific date
+
+        Args:
+            tenant_id: Tenant UUID
+            date: Date in YYYY-MM-DD format
+            resource_type: Resource type filter (e.g., "court", "field")
+            resource_id: Specific resource ID (optional)
+
+        Returns:
+            Dict with availabilities list containing available time slots
+        """
+        try:
+            async with httpx.AsyncClient() as client:
+                params = {"date": date}
+
+                if resource_id:
+                    params["resource_id"] = str(resource_id)
+                elif resource_type:
+                    params["resource_type"] = resource_type
+
+                response = await client.get(
+                    f"{self.booking_service_url}/api/v1/bookings/availability/check",
+                    headers={"X-Tenant-Id": str(tenant_id)},
+                    params=params,
+                    timeout=10.0,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                print(f"[OK] Retrieved availability for {len(data.get('availabilities', []))} resources on {date}")
+                return data
+        except Exception as e:
+            print(f"[ERROR] Error checking booking availability: {e}")
+            return {"availabilities": [], "error": str(e)}
 
 
 context_service = ContextService()

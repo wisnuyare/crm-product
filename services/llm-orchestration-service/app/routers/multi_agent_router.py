@@ -77,6 +77,10 @@ class MultiAgentRouter:
                 tenant_id=tenant_id,
                 limit=6  # Last 3 turns (6 messages)
             )
+            
+            # Step 1.1: Get workflow state
+            workflow_state = await context_service.get_workflow_state(str(conversation_id))
+            logger.info(f"Loaded workflow state for {conversation_id}: {workflow_state}")
 
             # Step 1.5: Check if transaction is in progress
             # Detect if customer is providing transaction-related information
@@ -105,6 +109,12 @@ class MultiAgentRouter:
 
             # Method 2: Detect transaction response patterns (fallback if history fails)
             # Check if the user message looks like a transaction response
+            logger.info(f"DEBUG: transaction_in_progress={transaction_in_progress}, workflow_state={workflow_state}")
+            if not transaction_in_progress and workflow_state:
+                # If we have active workflow state, we are likely in a transaction
+                transaction_in_progress = True
+                logger.info("🔄 Active workflow state found - skipping Orchestrator")
+
             if not transaction_in_progress:
                 msg_lower = user_message.lower().strip()
 
@@ -189,6 +199,7 @@ class MultiAgentRouter:
                     user_message=user_message,
                     tenant_id=tenant_id,
                     conversation_id=conversation_id,
+                    outlet_id=outlet_id,
                     kb_ids=kb_ids or [],
                     conversation_history=conversation_history
                 )
@@ -204,7 +215,8 @@ class MultiAgentRouter:
                         outlet_id=outlet_id,
                         customer_phone=customer_phone,
                         conversation_history=conversation_history,
-                        original_response=response_data["response"]
+                        original_response=response_data["response"],
+                        workflow_state=workflow_state
                     )
 
                     response_data["metadata"]["rerouted_from"] = "information"
@@ -220,7 +232,8 @@ class MultiAgentRouter:
                     conversation_id=conversation_id,
                     outlet_id=outlet_id,
                     customer_phone=customer_phone,
-                    conversation_history=conversation_history
+                    conversation_history=conversation_history,
+                    workflow_state=workflow_state
                 )
 
                 response_data["intent"] = intent
@@ -234,6 +247,7 @@ class MultiAgentRouter:
                     user_message=user_message,
                     tenant_id=tenant_id,
                     conversation_id=conversation_id,
+                    outlet_id=outlet_id,
                     kb_ids=kb_ids or [],
                     conversation_history=conversation_history
                 )
@@ -262,6 +276,7 @@ class MultiAgentRouter:
         user_message: str,
         tenant_id: UUID,
         conversation_id: UUID,
+        outlet_id: Optional[UUID],
         kb_ids: list,
         conversation_history: list
     ) -> Dict[str, Any]:
@@ -272,6 +287,7 @@ class MultiAgentRouter:
             user_message: User's message
             tenant_id: Tenant UUID
             conversation_id: Conversation UUID
+            outlet_id: Optional outlet UUID
             kb_ids: Knowledge base IDs
             conversation_history: Previous messages
 
@@ -283,6 +299,7 @@ class MultiAgentRouter:
         context = {
             "tenant_id": str(tenant_id),
             "conversation_id": str(conversation_id),
+            "outlet_id": str(outlet_id) if outlet_id else None,
             "kb_ids": [str(kb_id) for kb_id in kb_ids],
             "conversation_history": conversation_history
         }
@@ -313,7 +330,8 @@ class MultiAgentRouter:
         outlet_id: Optional[UUID],
         customer_phone: Optional[str],
         conversation_history: list,
-        original_response: Optional[str] = None
+        original_response: Optional[str] = None,
+        workflow_state: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
         Handle request with Transaction Agent
@@ -350,7 +368,7 @@ class MultiAgentRouter:
             "customer_phone": customer_phone or "",
             "transaction_type": "order",  # Can be dynamically determined
             "conversation_history": conversation_history,
-            "workflow_state": {}
+            "workflow_state": workflow_state or {}
         }
 
         result = await self.transaction_agent.process(
@@ -363,6 +381,16 @@ class MultiAgentRouter:
         if original_response:
             response_text = f"{original_response}\n\n{response_text}"
 
+        # Save workflow state
+        new_state = result.get("workflow_state", {})
+        if new_state:
+            await context_service.save_workflow_state(str(conversation_id), new_state)
+            logger.info(f"Saved workflow state for {conversation_id}: {new_state}")
+        elif workflow_state and not new_state:
+            # State was cleared (transaction completed/failed)
+            await context_service.save_workflow_state(str(conversation_id), {})
+            logger.info(f"Cleared workflow state for {conversation_id}")
+
         return {
             "response": response_text,
             "agent_used": "transaction",
@@ -370,8 +398,9 @@ class MultiAgentRouter:
             "transaction_id": result.get("transaction_id"),
             "function_calls": result.get("function_calls", []),
             "metadata": {
-                "workflow_state": result.get("workflow_state", {}),
-                "function_call_count": len(result.get("function_calls", []))
+                "workflow_state": new_state,
+                "function_call_count": len(result.get("function_calls", [])),
+                "intent": result.get("intent_data", {})  # Include intent detection results
             }
         }
 

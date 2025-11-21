@@ -63,19 +63,26 @@ INTENT CLASSIFICATION:
 Classify the customer message into ONE of these intents:
 
 1. product_inquiry
-   - Customer asking about products, prices, availability, what's available
-   - Examples: "ada apa?", "punya kimchi?", "harga berapa?", "ada yang pedas?"
-   - Keywords: "ada", "punya", "harga", "berapa", "apa saja", "menu"
+   - Customer asking GENERAL questions about what products/categories are available
+   - Examples: "ada apa aja?", "apa saja menu nya?", "ada produk apa?", "jual apa?"
+   - Keywords: "apa aja", "apa saja", "menu apa", "jual apa"
+   - NOTE: If message mentions a SPECIFIC product name, use place_order instead!
 
 2. place_order
-   - Customer wants to buy/order/purchase products
-   - Examples: "mau pesan", "order 2 kimchi", "beli", "saya mau beli"
-   - Keywords: "pesan", "order", "beli", "mau", "purchase"
+   - Customer wants to buy/order/purchase products OR asking about SPECIFIC product availability
+   - Examples:
+     * "mau pesan", "order 2 kimchi", "beli", "saya mau beli"
+     * "kimchi ada?", "punya kimchi?", "kimchi bisa?", "ready kimchi?"
+     * "ada kimchi?", "kimchi ready?", "kimchi stock?"
+   - Keywords: "pesan", "order", "beli", "mau" + product name, specific product + "ada/bisa/ready/punya"
+   - IMPORTANT: ANY message with a specific product name (kimchi, sawi, etc.) = place_order!
 
 3. create_booking
-   - Customer wants to book a service, resource, or appointment
-   - Examples: "booking besok", "reserve meja", "mau booking jam 2"
-   - Keywords: "booking", "reserve", "jadwal", "appointment"
+   - Customer wants to book a service/resource/appointment OR check booking availability
+   - Examples:
+     * Availability checks: "futsal tanggal 23 kosong jam berapa?", "kapan lapangan kosong?", "tennis court available when?", "ada slot jam berapa?"
+     * Booking requests: "booking besok", "reserve meja", "mau booking jam 2"
+   - Keywords: "booking", "reserve", "jadwal", "appointment", "kosong", "available", "ada slot", "jam berapa kosong", "kapan", "tersedia"
 
 4. general_question
    - Greetings, thank you, business hours, location, contact info
@@ -89,11 +96,12 @@ OUTPUT FORMAT (JSON only):
   "reason": "optional explanation if REJECT"
 }
 
-IMPORTANT:
+CRITICAL RULES:
 - Return ONLY valid JSON, no other text
-- If message mentions ordering/buying products → place_order
-- If message just asks about products → product_inquiry
-- If unsure between product_inquiry and general_question → product_inquiry
+- If message contains SPECIFIC product name (kimchi, sawi, lobak, etc.) → place_order
+- If message asks "ada apa?" / "menu apa?" (no specific product) → product_inquiry
+- If message has "mau"/"order"/"beli"/"pesan" → place_order
+- If unsure between product_inquiry and place_order → place_order (err on the side of transaction)
 - Confidence should be 0.0-1.0"""
 
     async def process(self, user_message: str, context: Dict[str, Any]) -> Dict[str, Any]:

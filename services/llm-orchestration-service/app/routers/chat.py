@@ -15,6 +15,20 @@ import logging
 from app.models import ChatRequest, ChatResponse
 from app.routers.multi_agent_router import multi_agent_router
 from app.config import settings
+from pydantic import BaseModel
+from typing import List, Dict, Any
+
+# V2 Request Models
+class V2Message(BaseModel):
+    role: str
+    content: str
+
+class V2ChatRequest(BaseModel):
+    messages: List[V2Message]
+    tenant_id: str
+    outlet_id: str
+    customer_phone: str
+    conversation_id: Optional[str] = None
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +155,76 @@ async def chat(
         raise
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process chat message: {str(e)}"
+        )
+
+
+@router.post("/v2/chat", response_model=ChatResponse)
+async def chat_v2(request: V2ChatRequest):
+    """
+    V2 Chat Endpoint (Adapter for Multi-Agent Router)
+    
+    Adapts the legacy V2 request format (used by message-sender-service)
+    to the new Multi-Agent Router.
+    """
+    try:
+        # Get current user message
+        user_message = request.messages[-1].content if request.messages else ""
+        
+        # Parse UUIDs
+        try:
+            tenant_id = UUID(request.tenant_id)
+            outlet_id = UUID(request.outlet_id) if request.outlet_id else None
+            # Generate new conversation ID if not provided
+            # Generate conversation ID if not provided
+            if request.conversation_id:
+                conversation_id = UUID(request.conversation_id)
+            elif request.customer_phone:
+                # Generate deterministic UUID from phone + tenant to ensure state persistence
+                # This fixes the "amnesia" bug where state is lost between messages
+                import uuid
+                # Use a constant namespace (DNS namespace)
+                namespace = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8') 
+                name = f"{request.tenant_id}:{request.customer_phone}"
+                conversation_id = uuid.uuid5(namespace, name)
+                logger.info(f"Generated deterministic conversation_id {conversation_id} for phone {request.customer_phone}")
+            else:
+                import uuid
+                conversation_id = uuid.uuid4()
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid UUID format: {e}")
+
+        logger.info(f"V2 Adapter: Forwarding to MultiAgentRouter for {conversation_id}")
+
+        # Call MultiAgentRouter
+        result = await multi_agent_router.process_message(
+            user_message=user_message,
+            tenant_id=tenant_id,
+            conversation_id=conversation_id,
+            outlet_id=outlet_id,
+            customer_phone=request.customer_phone,
+            kb_ids=[] # KB IDs not currently supported in V2 request body
+        )
+
+        # Map result to ChatResponse
+        return ChatResponse(
+            response=result["response"],
+            conversation_id=conversation_id,
+            intent=result["intent"],
+            agent_used=result["agent_used"],
+            confidence=result["confidence"],
+            transaction_created=result["transaction_created"],
+            transaction_id=result.get("transaction_id"),
+            function_calls=result.get("function_calls", []),
+            metadata=result.get("metadata", {})
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in v2 chat adapter: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"Failed to process chat message: {str(e)}"

@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from prometheus_fastapi_instrumentator import PrometheusFastApiInstrumentator
+import sys
 
 from app.config import settings
 from app.routers import generate, chat
@@ -96,9 +97,22 @@ app.include_router(generate.router)
 # Include multi-agent chat router if enabled
 if settings.use_multi_agent:
     app.include_router(chat.router)
-    print(f"✨ Multi-Agent System ENABLED - /api/v1/llm/chat available")
+    print(f"✨ Multi-Agent System ENABLED - /api/v1/llm/chat and /api/v1/llm/v2/chat available")
 else:
     print(f"ℹ️  Multi-Agent System DISABLED - Using legacy /api/v1/llm/generate")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Print all registered routes on startup"""
+    print("\n📍 Registered Routes:")
+    for route in app.routes:
+        if hasattr(route, "methods"):
+            methods = ", ".join(route.methods)
+            print(f"  {methods} {route.path}")
+        else:
+            print(f"  {route.path}")
+    print("\n")
 
 
 if __name__ == "__main__":

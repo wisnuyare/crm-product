@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     tenant_service_url: str = "http://tenant-service:3001"
     booking_service_url: str = "http://booking-service:3008"
 
+    # Redis
+    redis_host: str = "redis"
+    redis_port: int = 6379
+
     # RAG Settings
     rag_top_k: int = 5
     rag_min_score: float = 0.5
@@ -44,6 +48,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"
 
 
 settings = Settings()

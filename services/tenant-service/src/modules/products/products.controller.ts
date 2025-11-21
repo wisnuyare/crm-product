@@ -58,7 +58,9 @@ export class ProductsController {
 
   /**
    * Get all products for a tenant with optional filters
+   * @Public - No auth required for internal service-to-service calls
    */
+  @Public()
   @Get('products')
   @ApiOperation({ summary: 'Get all products with optional filters' })
   @ApiResponse({ status: 200, description: 'List of products' })

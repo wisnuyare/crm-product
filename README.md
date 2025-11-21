@@ -8,12 +8,15 @@ This platform enables businesses to automate WhatsApp customer service using AI 
 
 **Key Features**:
 - Multi-tenant SaaS architecture
-- LLM-powered responses with knowledge base integration
+- **Multi-agent LLM system** with specialized agents for optimal performance
+- **Booking availability checks** with intelligent date parsing (Indonesian + English)
+- LLM-powered responses with knowledge base integration (RAG)
 - Smart handoff to human agents
 - Real-time conversation dashboard
 - Usage-based billing with quotas
 - Vector search with Qdrant
 - Event-driven architecture with Pub/Sub
+- **Sports facility management** (futsal, tennis, badminton courts)
 
 ## Technology Stack
 
@@ -23,9 +26,10 @@ This platform enables businesses to automate WhatsApp customer service using AI 
 | Billing Service | Go | Gin | 3002 |
 | Knowledge Service | Python | FastAPI | 3003 |
 | Conversation Service | Node.js | Express + Socket.IO | 3004 |
-| LLM Orchestration | Python | FastAPI | 3005 |
+| LLM Orchestration | Python | FastAPI + OpenAI | 3005 |
 | Message Sender | Go | Gin | 3006 |
 | Analytics Service | Python | FastAPI | 3007 |
+| **Booking Service** | Go | Gin | 3008 |
 
 **Infrastructure**: GCP (Cloud Run, Cloud SQL, Pub/Sub, Cloud Storage, BigQuery)
 
@@ -210,6 +214,73 @@ Services communicate via Google Pub/Sub:
 3. Vectors stored in Qdrant with tenant isolation
 4. Query time: retrieve top-5 relevant chunks (min score 0.7)
 5. Inject context into LLM prompt
+
+### Booking Availability System 🆕
+
+**Real-time availability checks for sports facilities with intelligent date parsing:**
+
+**Flow:**
+```mermaid
+graph LR
+    A[Customer Query] --> B[Rule-Based Detection]
+    B --> C[Booking Agent]
+    C --> D[Function Calling]
+    D --> E[Booking Service API]
+    E --> F[PostgreSQL]
+    F --> E
+    E --> D
+    D --> C
+    C --> G[Formatted Response]
+```
+
+**Example Queries:**
+- Indonesian: `"futsal tanggal 23 kosong jam berapa?"` → Shows all available slots for Nov 23
+- Indonesian: `"saya mau booking futsal besok"` → Shows tomorrow's availability
+- English: `"tennis court available when?"` → Asks for date clarification
+- Vague: `"kapan lapangan futsal kosong?"` → Asks for specific date
+
+**Date Parsing:**
+- `"tanggal 23"` → 2025-11-23 (current year-month + day)
+- `"besok"` → Tomorrow's date
+- `"lusa"` → Day after tomorrow
+- `"hari ini"` → Today's date
+
+**Resource Types:**
+- `field` - Futsal fields, soccer fields, basketball courts
+- `court` - Tennis courts, badminton courts
+- `room` - Meeting rooms
+- `equipment` - Rental equipment
+
+**Testing:**
+```bash
+# Populate sample sports resources
+python add_sports_resources.py
+
+# Run availability check tests
+python test_booking_inquiry.py
+```
+
+**API Endpoint:**
+```bash
+GET /api/v1/bookings/availability/check?date=2025-11-23&resource_type=field
+Headers:
+  X-Tenant-Id: 00000000-0000-0000-0000-000000000001
+
+Response:
+{
+  "availabilities": [
+    {
+      "resource_name": "Futsal Field A",
+      "available_slots": [
+        {"start_time": "08:00", "end_time": "09:00", "price": 100000},
+        ...
+      ]
+    }
+  ]
+}
+```
+
+📘 **Full Documentation:** See `/docs-site/docs/features/booking-availability.md`
 
 ### Subscription Tiers
 

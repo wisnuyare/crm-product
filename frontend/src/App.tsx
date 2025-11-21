@@ -11,6 +11,7 @@ import { KnowledgeBase } from './pages/KnowledgeBase';
 import { Analytics } from './pages/Analytics';
 import Settings from './pages/Settings';
 import { Bookings } from './pages/Bookings';
+import { Resources } from './pages/Resources';
 import { Products } from './pages/Products';
 import { Orders } from './pages/Orders';
 import OwnerDashboard from './pages/OwnerDashboard';
@@ -57,6 +58,7 @@ function App() {
                     <Route path="/conversations" element={<Conversations />} />
                     <Route path="/knowledge" element={<KnowledgeBase />} />
                     <Route path="/bookings" element={<Bookings />} />
+                    <Route path="/resources" element={<Resources />} />
                     <Route path="/products" element={<Products />} />
                     <Route path="/orders" element={<Orders />} />
                     <Route path="/analytics" element={<Analytics />} />

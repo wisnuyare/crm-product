@@ -80,6 +80,7 @@ func main() {
 		v1.GET("/bookings", handlers.ListBookings(db))
 		v1.POST("/bookings", handlers.CreateBooking(db))
 		v1.GET("/bookings/:id", handlers.GetBooking(db))
+		v1.GET("/bookings/availability/check", handlers.CheckAvailability(db))
 	}
 
 	log.Printf("🚀 Booking Service (POC) starting on port %s", port)

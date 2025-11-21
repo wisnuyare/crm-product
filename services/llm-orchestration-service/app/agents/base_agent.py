@@ -133,3 +133,22 @@ class BaseAgent(ABC):
     def get_system_prompt_length(self) -> int:
         """Get system prompt token count (approximate)"""
         return len(self.system_prompt.split())
+
+    async def _call_llm_with_tools(
+        self,
+        messages: List[Dict[str, str]],
+        tools: List[Dict],
+        temperature: Optional[float] = None
+    ) -> Any:
+        """
+        Call LLM with function calling tools (wrapper for clarity)
+
+        Args:
+            messages: List of message dictionaries
+            tools: List of function definitions
+            temperature: Override default temperature
+
+        Returns:
+            OpenAI response object
+        """
+        return await self._call_llm(messages=messages, tools=tools, temperature=temperature)

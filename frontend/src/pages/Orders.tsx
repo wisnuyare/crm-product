@@ -71,10 +71,13 @@ export function Orders() {
         params.append('status', activeTab);
       }
 
+      console.log('🔍 Fetching orders with URL:', `/api/v1/orders?${params}`);
       const data: OrdersResponse = await api.order.get(`/api/v1/orders?${params}`);
+      console.log('📦 Orders response:', data);
+      console.log('📊 Orders count:', data?.orders?.length || 0);
       setOrders(data.orders || []);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('❌ Error fetching orders:', error);
     } finally {
       setLoading(false);
     }

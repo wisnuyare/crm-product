@@ -124,8 +124,8 @@ export class ProductsService {
         .filter((item) => item.similarity >= minSimilarity)
         .sort((a, b) => b.similarity - a.similarity);
 
-      if (scoredProducts.length > 0 && scoredProducts[0].similarity >= 0.9) {
-        // Very close match, return it as the product
+      if (scoredProducts.length > 0 && scoredProducts[0].similarity >= 0.7) {
+        // Close match (including substring matches), return it as the product
         this.logger.log(
           `Close match found for "${productName}": "${scoredProducts[0].product.name}" (similarity: ${scoredProducts[0].similarity})`,
         );

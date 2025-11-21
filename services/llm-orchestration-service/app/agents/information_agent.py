@@ -80,6 +80,7 @@ Remember: You handle INFORMATION only. If customer wants to ORDER, acknowledge a
             user_message: Customer's message
             context: Context dict with:
                 - tenant_id: Tenant UUID
+                - outlet_id: Outlet UUID
                 - conversation_id: Conversation UUID
                 - kb_ids: Knowledge base IDs for RAG
                 - conversation_history: Previous messages
@@ -102,21 +103,32 @@ Remember: You handle INFORMATION only. If customer wants to ORDER, acknowledge a
                 kb_ids=context.get("kb_ids", []),
             )
 
-            # Step 2: Build enhanced system prompt with RAG
-            enhanced_prompt = self._add_rag_context(self.system_prompt, rag_context)
+            # Step 2: Get products from tenant service
+            outlet_id_value = context.get("outlet_id")
+            logger.info(f"🔍 Fetching products - outlet_id: {outlet_id_value}, tenant_id: {context['tenant_id']}")
 
-            # Step 3: Build messages with conversation history
+            products = await self._get_products(
+                tenant_id=context["tenant_id"],
+                outlet_id=outlet_id_value,
+            )
+            logger.info(f"📦 Fetched {len(products)} products")
+
+            # Step 3: Build enhanced system prompt with RAG and products
+            enhanced_prompt = self._add_rag_context(self.system_prompt, rag_context)
+            enhanced_prompt = self._add_products_context(enhanced_prompt, products)
+
+            # Step 4: Build messages with conversation history
             messages = self._build_messages(
                 user_message=user_message,
                 conversation_history=context.get("conversation_history", []),
                 system_prompt=enhanced_prompt,
             )
 
-            # Step 4: Generate response
+            # Step 5: Generate response
             response_obj = await self._call_llm(messages=messages, temperature=0.7)
             response_text = response_obj.choices[0].message.content
 
-            # Step 5: Check if customer wants to order (trigger re-routing)
+            # Step 6: Check if customer wants to order (trigger re-routing)
             should_reroute = self._detect_order_intent(response_text, user_message)
 
             logger.info(f"Information Agent response generated (reroute={should_reroute})")
@@ -192,6 +204,61 @@ Remember: You handle INFORMATION only. If customer wants to ORDER, acknowledge a
             context_str += f"{truncated_text}\n"
 
         return base_prompt + context_str
+
+    async def _get_products(self, tenant_id: str, outlet_id: str) -> List[Dict[str, Any]]:
+        """
+        Fetch products from tenant service
+
+        Args:
+            tenant_id: Tenant ID
+            outlet_id: Outlet ID
+
+        Returns:
+            List of active products
+        """
+        try:
+            products = await context_service.get_products(
+                tenant_id=tenant_id,
+                outlet_id=outlet_id,
+            )
+            logger.info(f"Retrieved {len(products)} products from tenant service")
+            return products
+        except Exception as e:
+            logger.error(f"Error fetching products: {e}")
+            return []
+
+    def _add_products_context(self, base_prompt: str, products: List[Dict[str, Any]]) -> str:
+        """
+        Add product list to system prompt
+
+        Args:
+            base_prompt: Base system prompt (with RAG context)
+            products: List of products from tenant service
+
+        Returns:
+            Enhanced system prompt with product list
+        """
+        if not products:
+            return base_prompt + "\n\n⚠️ No products available. Inform customer that products are currently unavailable."
+
+        products_str = "\n\n📦 AVAILABLE PRODUCTS (Use this list to answer product inquiries):\n"
+        for i, product in enumerate(products, 1):
+            name = product.get("name", "Unknown")
+            price = product.get("price", 0)
+            description = product.get("description", "")
+
+            # Format price in Rupiah (convert to float first, then to int for formatting)
+            price_value = int(float(price)) if price else 0
+            formatted_price = f"Rp {price_value:,}".replace(",", ".")
+
+            products_str += f"\n{i}. {name} - {formatted_price}"
+            if description:
+                products_str += f"\n   {description}"
+            products_str += "\n"
+
+        products_str += "\n⚠️ IMPORTANT: ONLY list products from the above list. DO NOT make up or hallucinate products that are not listed here."
+
+        return base_prompt + products_str
 
     def _detect_order_intent(self, response: str, user_message: str) -> bool:
         """

@@ -1,16 +1,16 @@
 import { auth } from './firebase';
 
-// Base API configuration
+// Base API configuration with environment variable support
 export const API_BASE_URLS = {
-  tenant: 'http://localhost:3001',
-  billing: 'http://localhost:3002',
-  knowledge: 'http://localhost:3003',
-  conversation: 'http://localhost:3004',
-  llm: 'http://localhost:3005',
-  messageSender: 'http://localhost:3006',
-  analytics: 'http://localhost:3007',
-  booking: 'http://localhost:3008',
-  order: 'http://localhost:3009',
+  tenant: import.meta.env.VITE_TENANT_API_URL || 'http://localhost:3001',
+  billing: import.meta.env.VITE_BILLING_API_URL || 'http://localhost:3002',
+  knowledge: import.meta.env.VITE_KNOWLEDGE_API_URL || 'http://localhost:3003',
+  conversation: import.meta.env.VITE_CONVERSATION_API_URL || 'http://localhost:3004',
+  llm: import.meta.env.VITE_LLM_API_URL || 'http://localhost:3005',
+  messageSender: import.meta.env.VITE_MESSAGE_SENDER_API_URL || 'http://localhost:3006',
+  analytics: import.meta.env.VITE_ANALYTICS_API_URL || 'http://localhost:3007',
+  booking: import.meta.env.VITE_BOOKING_API_URL || 'http://localhost:3008',
+  order: import.meta.env.VITE_ORDER_API_URL || 'http://localhost:3009',
 };
 
 // Fetch wrapper with Firebase JWT authentication
@@ -36,6 +36,8 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const tokenResult = await user.getIdTokenResult();
   const tenantId = tokenResult.claims.tenant_id as string | undefined;
 
+  console.log('🔐 JWT tenant_id claim:', tenantId || '(not set - using fallback)');
+
   const isFormData = typeof FormData !== 'undefined' && options?.body instanceof FormData;
   const rawHeaders = options?.headers;
   let customHeaders: Record<string, string> = {};
@@ -52,12 +54,14 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   // Add X-Tenant-Id header if tenant ID is available
   // Fallback to default tenant if not set (temporary workaround)
-  if (tenantId) {
-    headers['X-Tenant-Id'] = tenantId;
-  } else {
-    // TEMPORARY: Use default tenant for development
-    headers['X-Tenant-Id'] = '00000000-0000-0000-0000-000000000001';
-  }
+  // TEMPORARY FIX: Always use default tenant to see WhatsApp orders
+  headers['X-Tenant-Id'] = '00000000-0000-0000-0000-000000000001';
+
+  // if (tenantId) {
+  //   headers['X-Tenant-Id'] = tenantId;
+  // } else {
+  //   headers['X-Tenant-Id'] = '00000000-0000-0000-0000-000000000001';
+  // }
 
   if (!isFormData && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
